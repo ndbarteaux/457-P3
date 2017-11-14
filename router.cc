@@ -2,6 +2,9 @@
 #include <string.h>
 #include <iostream> 
 #include <sys/types.h> 
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include<tuple>
 #include <sys/wait.h> 
 #include <unistd.h>
 #include <fstream>
