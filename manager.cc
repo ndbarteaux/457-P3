@@ -59,7 +59,7 @@ void parentFunction() {
 
 int main(int argc, char * argv[]) {
 	if(argc == 1) {
-		fprintf(stderr, "Usage for %s: $./manager <input.txt>", argv[0]);
+		fprintf(stderr, "Usage for %s: $./manager <input>", argv[0]);
 		exit(1);
 	} 
 	parentFunction();
