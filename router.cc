@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <string.h>
-#include <iostream> 
-#include <sys/types.h> 
+#include <iostream>
+#include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include<tuple>
@@ -19,4 +19,5 @@ void childFunction(int fd) {
 	int pid = getpid();
 	cout << "Forked child with PID of " << pid << endl;
 	write(fd, "Hello World!\n", 14);
+
 }
