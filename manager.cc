@@ -14,14 +14,15 @@
 #include "project3.h"
 
 using namespace std;
+
 int children;
 
-void parentFunction() {
+void parentFunction(string in) {
 	int fd, children;
 	string line;
 	vector<string> lines;
 	fd = open("test.txt", O_CREAT|O_TRUNC|O_WRONLY, 0666);
-	ifstream input ("input.txt");
+	ifstream input (in);
 
 	if(input.is_open()) {
 
@@ -51,7 +52,7 @@ void parentFunction() {
 			perror("Fork failed");
 		} else if(pid[i] == 0) {
 			childFunction(fd);  // have child do something (write to file for now)
-			exit(0); // so childs don't continue to fork
+			exit(0); // so children don't continue to fork
 		}
 	}
 }
@@ -59,10 +60,13 @@ void parentFunction() {
 
 int main(int argc, char * argv[]) {
 	if(argc == 1) {
-		fprintf(stderr, "Usage for %s: $./manager <input>", argv[0]);
+		fprintf(stderr, "Usage for %s: $./manager <input>\n", argv[0]);
 		exit(1);
 	} 
-	parentFunction();
+	stringstream ss;
+	ss << argv[1];
+	string in = ss.str();
+	parentFunction(in);
 	// Wait for children to exit
 	int status;
 	// For each specific child
