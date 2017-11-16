@@ -62,7 +62,7 @@ int main(int argc, char * argv[]) {
 	if(argc == 1) {
 		fprintf(stderr, "Usage for %s: $./manager <input>\n", argv[0]);
 		exit(1);
-	} 
+	}
 	stringstream ss;
 	ss << argv[1];
 	string in = ss.str();

@@ -5,7 +5,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include<tuple>
-#include <sys/wait.h> 
+#include <sys/wait.h>
 #include <unistd.h>
 #include <fstream>
 #include <fcntl.h>
@@ -16,8 +16,8 @@
 using namespace std;
 
 void childFunction(int fd) {
-	int pid = getpid();
-	cout << "Forked child with PID of " << pid << endl;
-	write(fd, "Hello World!\n", 13);
+    int pid = getpid();
+    cout << "Forked child with PID of " << pid << endl;
+    write(fd, "Hello World!\n", 13);
 
 }
