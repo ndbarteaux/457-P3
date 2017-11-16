@@ -18,6 +18,6 @@ using namespace std;
 void childFunction(int fd) {
 	int pid = getpid();
 	cout << "Forked child with PID of " << pid << endl;
-	write(fd, "Hello World!\n", 14);
+	write(fd, "Hello World!\n", 13);
 
 }
