@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <string.h>
-#include <iostream> 
-#include <sys/types.h> 
+#include <iostream>
+#include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include<vector>
@@ -18,62 +18,65 @@ using namespace std;
 int children;
 
 void parentFunction(string in) {
-	int fd, children;
-	string line;
-	vector<string> lines;
-	fd = open("test.txt", O_CREAT|O_TRUNC|O_WRONLY, 0666);
-	ifstream input (in);
+    int fd, children;
+    string line;
+    vector<string> lines;
+    fd = open("test.txt", O_CREAT|O_TRUNC|O_WRONLY, 0666);
+    ifstream input (in);
 
-	if(input.is_open()) {
+    if(input.is_open()) {
 
-		// children holds how many forks to spawn, read from first line of file
-		getline(input, line);
-		istringstream numChildren(line);
-		numChildren >> children;
+        // children holds how many forks to spawn, read from first line of file
+        getline(input, line);
+        istringstream numChildren(line);
+        numChildren >> children;
 
-		while(getline(input, line)) {
-			stringstream sstream;
-			sstream << line;
-			string s = sstream.str();
-			lines.push_back(s);
-		}
-	}
+        while(getline(input, line)) {
+            stringstream sstream;
+            sstream << line;
+            string s = sstream.str();
+            lines.push_back(s);
+        }
+    }
 
-	lines.pop_back();
-	for(auto v : lines) {
-		cout << v << "\n" << endl;           
-	}                                        
-                                             
-	// As many pid's as children             
-	pid_t pid[children];	
-	// Spawn Children
-	for(int i=0; i<children; i++) {
-		if ((pid[i] = fork()) < 0) {
-			perror("Fork failed");
-		} else if(pid[i] == 0) {
-			childFunction(fd);  // have child do something (write to file for now)
-			exit(0); // so children don't continue to fork
-		}
-	}
+    lines.pop_back();
+    for(auto v : lines) {
+        cout << v << "\n" << endl;
+    }
+
+    // As many pid's as children
+    pid_t pid[children];
+    // Spawn Children
+    int port;
+    for(int i=0; i<children; i++) {
+        port = (rand() % 999) + 9000;    // sets a random port between 9000 and 9999 for each
+        if ((pid[i] = fork()) < 0) {
+            perror("Fork failed");
+        } else if(pid[i] == 0) {
+            childFunction(fd, port);  // have child do something (write to file for now)
+            exit(0); // so children don't continue to fork
+        }
+    }
 }
 
 
 int main(int argc, char * argv[]) {
-	if(argc == 1) {
-		fprintf(stderr, "Usage for %s: $./manager <input>\n", argv[0]);
-		exit(1);
-	} 
-	stringstream ss;
-	ss << argv[1];
-	string in = ss.str();
-	parentFunction(in);
-	// Wait for children to exit
-	int status;
-	// For each specific child
-	pid_t pidChild;
-	while ((pidChild = wait(&status)) > 0) {
-		cout << "Child with PID " << pidChild << " exited with status of " << status << endl;
-		children--;
-	}
-	return 0;
+    if(argc == 1) {
+        fprintf(stderr, "Usage for %s: $./manager <input>\n", argv[0]);
+        exit(1);
+    }
+    srand((unsigned int) time(0));  // seed the random # generator
+    stringstream ss;
+    ss << argv[1];
+    string in = ss.str();
+    parentFunction(in);
+    // Wait for children to exit
+    int status;
+    // For each specific child
+    pid_t pidChild;
+    while ((pidChild = wait(&status)) > 0) {
+        cout << "Child with PID " << pidChild << " exited with status of " << status << endl;
+        children--;
+    }
+    return 0;
 }
