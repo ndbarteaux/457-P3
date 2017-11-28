@@ -18,7 +18,7 @@ using namespace std;
 int children;
 
 void parentFunction(string in) {
-	int fd, children;
+    int fd, children;
 	string line;
 	vector<string> lines;
 	fd = open("test.txt", O_CREAT|O_TRUNC|O_WRONLY, 0666);
@@ -47,11 +47,13 @@ void parentFunction(string in) {
 	// As many pid's as children             
 	pid_t pid[children];	
 	// Spawn Children
+    int port;
 	for(int i=0; i<children; i++) {
-		if ((pid[i] = fork()) < 0) {
+        port = (rand() % 999) + 9000;    // sets a random port between 9000 and 9999 for each
+        if ((pid[i] = fork()) < 0) {
 			perror("Fork failed");
 		} else if(pid[i] == 0) {
-			childFunction(fd);  // have child do something (write to file for now)
+			childFunction(fd, port);  // have child do something (write to file for now)
 			exit(0); // so children don't continue to fork
 		}
 	}
@@ -63,7 +65,8 @@ int main(int argc, char * argv[]) {
 		fprintf(stderr, "Usage for %s: $./manager <input>\n", argv[0]);
 		exit(1);
 	}
-	stringstream ss;
+    srand((unsigned int) time(0));  // seed the random # generator
+    stringstream ss;
 	ss << argv[1];
 	string in = ss.str();
 	parentFunction(in);
