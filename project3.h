@@ -25,6 +25,13 @@ void childFunction(int fd, int port, bool debug);
 
 static int MANAGER_PORT = 8880;
 
+struct Children {
+	int fd;
+	int UDPport;
+	int ID;
+};
+
+
 class Manager {
 
   public:
@@ -112,16 +119,17 @@ class Manager {
 
 
     void Listen() {
+		char buffer[256];
         fd_set read_fds, sockets;
         FD_ZERO(&read_fds);
         int fdmax, newfd;
-
+		Children routers[count]; 
         // Listen on the server socket
         listen(server_fd, 10);  // 10 is max connectors - might need fixing
 
         FD_SET(server_fd, &sockets);
         fdmax = server_fd;
-
+		int numbytes;
         while(true) {
             read_fds = sockets;
             select(fdmax + 1, &read_fds, NULL, NULL, NULL);
@@ -136,7 +144,8 @@ class Manager {
                         struct sockaddr_in other_address;
                         socklen_t addr_size;
                         newfd = accept(server_fd, (struct sockaddr *) &other_address, &addr_size);
-
+						numbytes = recv(newfd, buffer, 255, 0);
+						cout << buffer << " Received by Manager" << endl;
                         if (newfd < 0) {
                             cerr << "Accept error: file descriptor not valid" << endl;
 
@@ -213,6 +222,10 @@ class Router {
             cerr << port << " Error: Failed to connect to manager" << endl;
         }
         cout << port << " binded" << endl;
+		stringstream portstream;
+		portstream << port;
+		string udpPort = portstream.str();
+		int bytesSent = send(manager_fd, udpPort.c_str(), sizeof(udpPort.c_str()), 0);
 
         close(manager_fd);
 
