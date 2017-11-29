@@ -40,6 +40,10 @@ class Manager {
     Manager(string filename) {
         count = 0;
         ReadFile(filename);
+		stringstream out;
+		out << "Manager Log file created";
+		string s = out.str();
+		writeOutput(s);
     }
 
     void ReadFile(string filename) {
@@ -255,7 +259,7 @@ class Manager {
 		time_t timeStamp = time(nullptr);
 		s << asctime(localtime(&timeStamp));
 		string stamp = s.str();
-		output << "[" << stamp.substr(0, stamp.length()-1) << "] " << msg << '\n';
+		output << "[" << stamp.substr(0, stamp.length()-1) << "]: " << msg << '\n';
 	}
 	
     // Wait for all children to exit
@@ -286,7 +290,10 @@ class Router {
     Router(int new_port) {
         pid = getpid();
         port = new_port;
-
+		stringstream out;
+		out << "Router Log file " << pid << ".out created";
+		string s = out.str();
+		writeRouter(s);
         //cout << "Forked child with PID of " << pid << endl;
         //write(output, "Hello World!\n", 13);
     }
@@ -417,6 +424,19 @@ class Router {
 
         cout << port << " received msg: " << buf << endl;
     }
+	
+	void writeRouter(string msg) {
+		stringstream name;
+		name << pid << ".out";
+		string filename = name.str();
+		ofstream output;
+		output.open(filename, ofstream::app);
+		stringstream s;
+		time_t timeStamp = time(nullptr);
+		s << asctime(localtime(&timeStamp));
+		string stamp = s.str();
+		output << "[" << stamp.substr(0, stamp.length()-1) << "]: " << msg << '\n';
+	}
 
   private:
     int pid;
