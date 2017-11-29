@@ -171,19 +171,23 @@ class Manager {
 		routers[id].fd = sockfd;
 		routers[id].UDPPort = newPort;
 		routers[id].ID = id;
-        string neighbors = findNeighbors(id);
-        cout << id << " neighbors: " << neighbors << endl;
-
-        stringstream packet;
-        packet << "|" << id << "|" << count << "|" << neighbors;
-        cout << packet.str() << endl;
-        const char* msg = packet.str().c_str();
+		if (id+1 == count) {
+			for(int i=0; i<=id; i++) {
+				 string neighbors = findNeighbors(i);
+				 cout << i << " neighbors: " << neighbors << endl;
+		         stringstream packet;
+		         packet << "|" << i << "|" << count << "|" << neighbors;
+		         cout << packet.str() << endl;
+		         const char* msg = packet.str().c_str();
+			}
+		}
 	}
-    /* Packet Structure for now
+    /* 
+	Packet Structure for now
         - Starts with '|' and each field is separated by '|'
         |[Router ID]|[Router count]|Neighbor line 1|Neighbor line 2|...|
     */
-
+			
     string findNeighbors(int id) {
         string result;
         for (int i = 0; i < count; i++) {
