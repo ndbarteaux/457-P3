@@ -8,19 +8,7 @@ void childFunction(int output, int port, bool debug) {
     Router router(port);
 
     router.CreateUDPSocket();
-
-    // UDP socket setup
-
-
-    int otherport;
-    if (debug) {
-        sleep(1);
-        cout << port << " Enter port: ";
-        cin >> otherport;
-        router.Send(otherport, "");
-    } else {
-        router.Receive();
-    }
+    router.CreateTCPSocket();
 
     // now, we give our port to the manager and get the table of our neighbors (id, link cost, port)
 
