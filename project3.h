@@ -146,10 +146,10 @@ class Manager {
                         // accept connection from child
                         newfd = accept(server_fd, (struct sockaddr *) &other_address, &addr_size);
 
-						            if (counter < 10) {
-						               	readRouterInfo(newfd, counter);
-							              counter++;
-						             }
+						 if (counter < 10) {
+						  		readRouterInfo(newfd, counter);
+								 counter++;
+						    }
 
                         if (newfd < 0) {
                             cerr << "Accept error: file descriptor not valid" << endl;
@@ -157,11 +157,6 @@ class Manager {
                             FD_SET(newfd, &sockets);    // add new accepted socket to the set
                             if (newfd > fdmax) { fdmax = newfd; }
                         }
-
-                        // wait to receive port number from child
-                        numbytes = recv(newfd, buffer, 255, 0);
-						cout << buffer << " Received by Manager" << endl;
-
                         // send some shit back
                         char* msg = "Hello";
                         send(newfd, msg, sizeof(msg), 0);
