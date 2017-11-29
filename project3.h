@@ -27,7 +27,7 @@ static int MANAGER_PORT = 8880;
 
 struct Children {
 	int fd;
-	int UDPport;
+	int UDPPort;
 	int ID;
 };
 
@@ -119,17 +119,16 @@ class Manager {
 
 
     void Listen() {
-		char buffer[256];
         fd_set read_fds, sockets;
         FD_ZERO(&read_fds);
         int fdmax, newfd;
-		Children routers[count]; 
+		
         // Listen on the server socket
         listen(server_fd, 10);  // 10 is max connectors - might need fixing
 
         FD_SET(server_fd, &sockets);
         fdmax = server_fd;
-		int numbytes;
+		int counter = 0;
         while(true) {
             read_fds = sockets;
             select(fdmax + 1, &read_fds, NULL, NULL, NULL);
@@ -144,8 +143,10 @@ class Manager {
                         struct sockaddr_in other_address;
                         socklen_t addr_size;
                         newfd = accept(server_fd, (struct sockaddr *) &other_address, &addr_size);
-						numbytes = recv(newfd, buffer, 255, 0);
-						cout << buffer << " Received by Manager" << endl;
+						if (counter < 10) {
+							readRouterInfo(newfd, counter);
+							counter++;
+						}
                         if (newfd < 0) {
                             cerr << "Accept error: file descriptor not valid" << endl;
 
@@ -163,7 +164,19 @@ class Manager {
 
     }
 
-
+	// Fill out router structs
+	void readRouterInfo(int sockfd, int i) {
+		char buffer[256]; 
+		int numbytes = recv(sockfd, buffer, 255, 0);
+		int newPort = atoi(buffer);
+		cout << buffer << " Received by Manager " << endl;
+		routers.push_back(Children());
+		routers[i].fd = sockfd;
+		routers[i].UDPPort = newPort;
+		routers[i].ID = i;
+		
+		cout << routers[i].fd << " " << routers[i].UDPPort << " " << routers[i].ID << endl;
+	}
 
     // Wait for all children to exit
     void Wait() {
@@ -181,7 +194,7 @@ class Manager {
     int output;   // output file fd
     int count;    // number of children
     vector<string> lines;
-
+	vector<Children> routers;
 
 };
 
