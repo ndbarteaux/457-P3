@@ -142,19 +142,31 @@ class Manager {
                         cout << "Manager found a connection" << endl;
                         struct sockaddr_in other_address;
                         socklen_t addr_size;
+
+                        // accept connection from child
                         newfd = accept(server_fd, (struct sockaddr *) &other_address, &addr_size);
-						if (counter < 10) {
-							readRouterInfo(newfd, counter);
-							counter++;
-						}
+
+						            if (counter < 10) {
+						               	readRouterInfo(newfd, counter);
+							              counter++;
+						             }
+
                         if (newfd < 0) {
                             cerr << "Accept error: file descriptor not valid" << endl;
-
                         } else {
                             FD_SET(newfd, &sockets);    // add new accepted socket to the set
                             if (newfd > fdmax) { fdmax = newfd; }
                         }
-                        // a message is received from an already connected client socket
+
+                        // wait to receive port number from child
+                        numbytes = recv(newfd, buffer, 255, 0);
+						cout << buffer << " Received by Manager" << endl;
+
+                        // send some shit back
+                        char* msg = "Hello";
+                        send(newfd, msg, sizeof(msg), 0);
+
+
                     } else {
                         // do something
                     }
@@ -234,13 +246,32 @@ class Router {
         if (status == -1) {
             cerr << port << " Error: Failed to connect to manager" << endl;
         }
-        cout << port << " binded" << endl;
+
+        cout << port << " connected" << endl;
 		stringstream portstream;
 		portstream << port;
 		string udpPort = portstream.str();
-		int bytesSent = send(manager_fd, udpPort.c_str(), sizeof(udpPort.c_str()), 0);
+
+        // send udp port to manager
+        ssize_t numbytes = send(manager_fd, udpPort.c_str(), sizeof(udpPort.c_str()), 0);
+
+        char buffer[1024];
+
+        // wait to receive info back from manager
+        numbytes = recv(manager_fd, buffer, sizeof(buffer), 0);
+
+        cout << port << " received: " << buffer << endl;
+
 
         close(manager_fd);
+
+    }
+
+    void SendToManager(string msg) {
+
+    }
+
+    void RecvFromManager() {
 
     }
 
