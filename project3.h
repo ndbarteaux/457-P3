@@ -16,11 +16,20 @@
 #include <cstring>
 #include <tuple>
 #include <arpa/inet.h>
+#include <netdb.h>
 
 using namespace std;
 
 void parentFunction(string in);
 void childFunction(int fd, int port, bool debug);
+
+static int MANAGER_PORT = 8880;
+
+struct Children {
+	int fd;
+	int UDPport;
+	int ID;
+};
 
 
 class Manager {
@@ -77,6 +86,85 @@ class Manager {
         }
     }
 
+    int CreateTCPSocket() {
+        struct addrinfo info;
+        struct addrinfo *server_info;  // will point to the results
+
+        memset(&info, 0, sizeof info);
+        info.ai_family = AF_INET;
+        info.ai_socktype = SOCK_STREAM;
+        info.ai_flags = AI_PASSIVE;
+        stringstream port;
+        port << MANAGER_PORT;
+
+        int status = getaddrinfo(NULL, port.str().c_str(), &info, &server_info);
+
+        if (status != 0) {
+            cerr << "getaddrinfo error: " << gai_strerror(status) << endl;
+            exit(1);
+        }
+        server_fd = socket(server_info->ai_family, server_info->ai_socktype,
+                               server_info->ai_protocol); // create socket
+        int buf;
+        if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &buf, sizeof(int)) == -1) {
+            perror("setsockopt");
+            exit(1);
+        }
+        bind(server_fd, server_info->ai_addr, server_info->ai_addrlen);
+        cout << "Manager binded to port " << port.str() << endl;
+        return server_fd;
+    }
+
+
+
+
+    void Listen() {
+		char buffer[256];
+        fd_set read_fds, sockets;
+        FD_ZERO(&read_fds);
+        int fdmax, newfd;
+		Children routers[count]; 
+        // Listen on the server socket
+        listen(server_fd, 10);  // 10 is max connectors - might need fixing
+
+        FD_SET(server_fd, &sockets);
+        fdmax = server_fd;
+		int numbytes;
+        while(true) {
+            read_fds = sockets;
+            select(fdmax + 1, &read_fds, NULL, NULL, NULL);
+
+            for (int i = 0; i <= fdmax; i++) {
+
+                // there is change in a socket
+                if (FD_ISSET(i, &read_fds)) {
+                    // new connection on the listener
+                    if (i == server_fd) {
+                        cout << "Manager found a connection" << endl;
+                        struct sockaddr_in other_address;
+                        socklen_t addr_size;
+                        newfd = accept(server_fd, (struct sockaddr *) &other_address, &addr_size);
+						numbytes = recv(newfd, buffer, 255, 0);
+						cout << buffer << " Received by Manager" << endl;
+                        if (newfd < 0) {
+                            cerr << "Accept error: file descriptor not valid" << endl;
+
+                        } else {
+                            FD_SET(newfd, &sockets);    // add new accepted socket to the set
+                            if (newfd > fdmax) { fdmax = newfd; }
+                        }
+                        // a message is received from an already connected client socket
+                    } else {
+                        // do something
+                    }
+                }
+            }
+        }
+
+    }
+
+
+
     // Wait for all children to exit
     void Wait() {
         int status;
@@ -89,6 +177,7 @@ class Manager {
     }
 
   private:
+    int server_fd;
     int output;   // output file fd
     int count;    // number of children
     vector<string> lines;
@@ -110,7 +199,37 @@ class Router {
         //write(output, "Hello World!\n", 13);
     }
 
-    void CreateTCPSocket();
+    void CreateTCPSocket() {
+        struct addrinfo info;
+        struct addrinfo *server_info;  // will point to the results
+        memset(&info, 0, sizeof info);
+        info.ai_family = AF_INET;
+        info.ai_socktype = SOCK_STREAM;
+        info.ai_flags = AI_PASSIVE;
+        stringstream manager_port;
+        manager_port << MANAGER_PORT;
+
+        int status = getaddrinfo(NULL, manager_port.str().c_str(), &info, &server_info);
+
+        if (status != 0) {
+            cerr << "getaddrinfo error: " << gai_strerror(status) << endl;
+            exit(1);
+        }
+        int manager_fd = socket(server_info->ai_family, server_info->ai_socktype, server_info->ai_protocol); // create socket
+        sleep(1);
+        status = connect (manager_fd, server_info->ai_addr, server_info->ai_addrlen);
+        if (status == -1) {
+            cerr << port << " Error: Failed to connect to manager" << endl;
+        }
+        cout << port << " binded" << endl;
+		stringstream portstream;
+		portstream << port;
+		string udpPort = portstream.str();
+		int bytesSent = send(manager_fd, udpPort.c_str(), sizeof(udpPort.c_str()), 0);
+
+        close(manager_fd);
+
+    }
 
     int CreateUDPSocket() {
         int status;
@@ -126,6 +245,7 @@ class Router {
         myaddr.sin_family = AF_INET;
         myaddr.sin_addr.s_addr = htonl(INADDR_ANY);   // fill in local IP
         myaddr.sin_port = htons(port);
+
 
         status = bind(udp_fd, (struct sockaddr *) &myaddr, sizeof(myaddr));
         if (status != 0) {
@@ -144,9 +264,7 @@ class Router {
         inet_pton(AF_INET, "127.0.0.1", &address.sin_addr);  // store localhost address in structure
 
         string packet = "Hello world";
-
         sendto(udp_fd, packet.c_str(), sizeof(packet), 0, (struct sockaddr *) &address, sizeof(address));
-
     }
 
     void Receive() {
@@ -156,7 +274,6 @@ class Router {
         recvfrom(udp_fd, buf, sizeof(buf), 0, (struct sockaddr *) &remoteaddr, &addrlen);
 
         cout << port << " received msg: " << buf << endl;
-
     }
 
   private:
