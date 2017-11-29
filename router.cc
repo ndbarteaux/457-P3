@@ -22,7 +22,6 @@ void childFunction(int output, int port, bool debug) {
         router.Receive();
     }
 
-
     // now, we give our port to the manager and get the table of our neighbors (id, link cost, port)
 
     // send and receive to different ports with sendto() and recvfrom()

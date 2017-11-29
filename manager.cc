@@ -2,7 +2,6 @@
 
 
 void parentFunction(string in) {
-
     Manager manager(in);
     manager.SpawnRouters();
 
@@ -10,7 +9,6 @@ void parentFunction(string in) {
     // TCP shit, talking to the routers
 
     manager.Wait();
-
 
 
 }
