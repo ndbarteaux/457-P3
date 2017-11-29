@@ -8,6 +8,7 @@
 #include <netinet/in.h>
 #include <vector>
 #include <sys/wait.h>
+#include <ctime>
 #include <unistd.h>
 #include <fstream>
 #include <fcntl.h>
@@ -21,7 +22,7 @@
 using namespace std;
 
 void parentFunction(string in);
-void childFunction(int fd, int port, bool debug);
+void childFunction(int port, bool debug);
 
 static int MANAGER_PORT = 8880;
 
@@ -39,7 +40,6 @@ class Manager {
     Manager(string filename) {
         count = 0;
         ReadFile(filename);
-        int output = open("test.txt", O_CREAT|O_TRUNC|O_WRONLY, 0666);
     }
 
     void ReadFile(string filename) {
@@ -76,9 +76,9 @@ class Manager {
                 perror("Fork failed");
             } else if(pid[i] == 0) {
                 if (i % 2 == 0) {
-                    childFunction(output, port, true);  // have child do something (write to file for now)
+                    childFunction(port, true);  // have child do something (write to file for now)
                 } else {
-                    childFunction(output, port, false);  // have child do something (write to file for now)
+                    childFunction(port, false);  // have child do something (write to file for now)
                 }
 
                 exit(0); // so children don't continue to fork
@@ -137,7 +137,6 @@ class Manager {
                 if (FD_ISSET(i, &read_fds)) {
                     // new connection on the listener
                     if (i == server_fd) {
-                        cout << "Manager found a connection" << endl;
                         struct sockaddr_in other_address;
                         socklen_t addr_size;
 
@@ -173,21 +172,63 @@ class Manager {
 		routers[id].ID = id;
 		if (id+1 == count) {
 			for(int i=0; i<=id; i++) {
-				 string neighbors = findNeighbors(i);
-				 cout << i << " neighbors: " << neighbors << endl;
-		         stringstream packet;
-		         packet << "|" << i << "|" << count << "|" << neighbors;
-		         cout << packet.str() << endl;
-		         const char* msg = packet.str().c_str();
+                string neighbors = findNeighbors(i);
+                stringstream msg;
+                msg << "|" << i << "|" << count << "|" << neighbors;
+                int fd = routers[i].fd;
+                Send(fd, msg.str());
 			}
 		}
 	}
+
+    // constructs and sends a packet to a specific router
+    void Send(int fd, string body) {
+        body += '\0';
+        size_t msg_len = body.length();
+
+        // calculate payload size for the header+body
+        unsigned int packet_size = sizeof (unsigned char) * msg_len + 4; // +4 for size header
+        unsigned char packet[packet_size];
+
+        /* sets packet[0-3] to represent the 32 bit payload size header */
+        Pack(packet, packet_size - 1);
+        // fill rest of packet with msg
+        for (size_t i = 0; i < msg_len; i++) {
+            packet[i + 4] = body[i];
+        }
+
+        send(fd, packet, sizeof(packet), 0);
+
+    }
     /* 
 	Packet Structure for now
         - Starts with '|' and each field is separated by '|'
         |[Router ID]|[Router count]|Neighbor line 1|Neighbor line 2|...|
     */
-			
+
+
+    /** store a 32-bit int into a char buffer */
+    void Pack(unsigned char *buf, unsigned int i) {
+        buf[3] = i & 0x0FF;
+        i >>= 8;
+        buf[2] = i & 0x0FF;
+        i >>= 8;
+        buf[1] = i & 0x0FF;
+        i >>= 8;
+        buf[0] = i;
+    }
+
+
+   /** Unpack a 32-bit unsigned from a char buffer  */
+    unsigned int Unpack(unsigned char *buf) {
+
+        return (unsigned int) (buf[0]<<24) |
+               (buf[1]<<16)  |
+               (buf[2]<<8)  |
+               buf[3];
+    }
+
+
     string findNeighbors(int id) {
         string result;
         for (int i = 0; i < count; i++) {
@@ -206,6 +247,17 @@ class Manager {
         }
         return result;
     }
+	
+	void writeOutput(string msg) {
+		ofstream output;
+		output.open("Manager.out", ofstream::app);
+		stringstream s;
+		time_t timeStamp = time(nullptr);
+		s << asctime(localtime(&timeStamp));
+		string stamp = s.str();
+		output << "[" << stamp.substr(0, stamp.length()-1) << "] " << msg << '\n';
+	}
+	
     // Wait for all children to exit
     void Wait() {
         int status;
@@ -219,7 +271,6 @@ class Manager {
 
   private:
     int server_fd;
-    int output;   // output file fd
     int count;    // number of children
     vector<string> lines;
 	vector<Children> routers;
@@ -240,6 +291,27 @@ class Router {
         //write(output, "Hello World!\n", 13);
     }
 
+    /** store a 32-bit int into a char buffer */
+    void Pack(unsigned char *buf, unsigned int i) {
+        buf[3] = i & 0x0FF;
+        i >>= 8;
+        buf[2] = i & 0x0FF;
+        i >>= 8;
+        buf[1] = i & 0x0FF;
+        i >>= 8;
+        buf[0] = i;
+    }
+
+
+    /** Unpack a 32-bit unsigned from a char buffer  */
+    unsigned int Unpack(unsigned char *buf) {
+
+        return (unsigned int) (buf[0]<<24) |
+               (buf[1]<<16)  |
+               (buf[2]<<8)  |
+               buf[3];
+    }
+
     void CreateTCPSocket() {
         struct addrinfo info;
         struct addrinfo *server_info;  // will point to the results
@@ -256,9 +328,9 @@ class Router {
             cerr << "getaddrinfo error: " << gai_strerror(status) << endl;
             exit(1);
         }
-        int manager_fd = socket(server_info->ai_family, server_info->ai_socktype, server_info->ai_protocol); // create socket
+        tcp_fd = socket(server_info->ai_family, server_info->ai_socktype, server_info->ai_protocol); // create socket
         sleep(1);
-        status = connect (manager_fd, server_info->ai_addr, server_info->ai_addrlen);
+        status = connect (tcp_fd, server_info->ai_addr, server_info->ai_addrlen);
         if (status == -1) {
             perror(" Error: Failed to connect to manager");
         }
@@ -269,17 +341,11 @@ class Router {
 		string udpPort = portstream.str();
 
         // send udp port to manager
-        ssize_t numbytes = send(manager_fd, udpPort.c_str(), sizeof(udpPort.c_str()), 0);
+        ssize_t numbytes = send(tcp_fd, udpPort.c_str(), sizeof(udpPort.c_str()), 0);
 
-        char buffer[1024];
-
-        // wait to receive info back from manager
-//        numbytes = recv(manager_fd, buffer, sizeof(buffer), 0);
-
-//        cout << port << " received: " << buffer << endl;
-
-
-        close(manager_fd);
+        // get response from manager
+        string response = RecvFromManager();
+        cout << response << endl;
 
     }
 
@@ -287,8 +353,24 @@ class Router {
 
     }
 
-    void RecvFromManager() {
+    string RecvFromManager() {
+        unsigned char response[4096];
+        int msg_size = recv(tcp_fd, response, 4096, 0); // receive first chunk
 
+        if (msg_size == 0) {
+        }
+        if (msg_size < 0) {
+            perror("Something fucked up receiving");
+        }
+
+        int file_size = this->Unpack(response); // processes header to get full file length
+        cout << "Received packet stating size=" << file_size << endl;
+
+        string result = "";
+        for (int i = 0; i < msg_size - 5; i++) {
+            result += static_cast<char>(response[i+4]);
+        }
+        return result;
     }
 
     int CreateUDPSocket() {
@@ -327,11 +409,11 @@ class Router {
         sendto(udp_fd, packet.c_str(), sizeof(packet), 0, (struct sockaddr *) &address, sizeof(address));
     }
 
-    void Receive() {
+    void Receive(int fd) {
         struct sockaddr_in remoteaddr;
         socklen_t addrlen = sizeof(remoteaddr);            /* length of addresses */
         char buf[256];
-        recvfrom(udp_fd, buf, sizeof(buf), 0, (struct sockaddr *) &remoteaddr, &addrlen);
+        recvfrom(fd, buf, sizeof(buf), 0, (struct sockaddr *) &remoteaddr, &addrlen);
 
         cout << port << " received msg: " << buf << endl;
     }

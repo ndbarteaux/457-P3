@@ -3,7 +3,7 @@
 using namespace std;
 
 
-void childFunction(int output, int port, bool debug) {
+void childFunction(int port, bool debug) {
 
     Router router(port);
 
