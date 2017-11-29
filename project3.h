@@ -20,7 +20,7 @@
 using namespace std;
 
 void parentFunction(string in);
-void childFunction(int fd, int port);
+void childFunction(int fd, int port, bool debug);
 
 
 class Manager {
@@ -48,6 +48,9 @@ class Manager {
                 string s = sstream.str();
                 lines.push_back(s);
             }
+        } else {
+            cerr << "File not found" << endl;
+            exit(1);
         }
         lines.pop_back();
     }
@@ -63,7 +66,12 @@ class Manager {
             if ((pid[i] = fork()) < 0) {
                 perror("Fork failed");
             } else if(pid[i] == 0) {
-                childFunction(output, port);  // have child do something (write to file for now)
+                if (i % 2 == 0) {
+                    childFunction(output, port, true);  // have child do something (write to file for now)
+                } else {
+                    childFunction(output, port, false);  // have child do something (write to file for now)
+                }
+
                 exit(0); // so children don't continue to fork
             }
         }
@@ -104,7 +112,7 @@ class Router {
 
     void CreateTCPSocket();
 
-    void CreateUDPSocket() {
+    int CreateUDPSocket() {
         int status;
 
         udp_fd = socket(AF_INET, SOCK_DGRAM, 0);  // UDP socket fd
@@ -114,7 +122,7 @@ class Router {
         }
 
         struct sockaddr_in myaddr;      // address object for my address
-        memset((char *) &myaddr, 0, sizeof(myaddr));
+        memset(&myaddr, 0, sizeof(myaddr));
         myaddr.sin_family = AF_INET;
         myaddr.sin_addr.s_addr = htonl(INADDR_ANY);   // fill in local IP
         myaddr.sin_port = htons(port);
@@ -124,8 +132,31 @@ class Router {
             perror("Socket bind failed");
             exit(1);
         }
-
         cout << "PID " << pid << "  Binded UDP socket to port " << port << endl;
+        return udp_fd;
+    }
+
+    int Send(int dest_port, string msg) {
+        struct sockaddr_in address;
+        memset(&address, 0, sizeof(address));
+        address.sin_family = AF_INET;
+        address.sin_port = htons(dest_port);
+        inet_pton(AF_INET, "127.0.0.1", &address.sin_addr);  // store localhost address in structure
+
+        string packet = "Hello world";
+
+        sendto(udp_fd, packet.c_str(), sizeof(packet), 0, (struct sockaddr *) &address, sizeof(address));
+
+    }
+
+    void Receive() {
+        struct sockaddr_in remoteaddr;
+        socklen_t addrlen = sizeof(remoteaddr);            /* length of addresses */
+        char buf[256];
+        recvfrom(udp_fd, buf, sizeof(buf), 0, (struct sockaddr *) &remoteaddr, &addrlen);
+
+        cout << port << " received msg: " << buf << endl;
+
     }
 
   private:
