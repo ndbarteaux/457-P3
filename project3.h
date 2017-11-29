@@ -96,20 +96,65 @@ class Manager {
             cerr << "getaddrinfo error: " << gai_strerror(status) << endl;
             exit(1);
         }
-        int server_fd = socket(server_info->ai_family, server_info->ai_socktype, server_info->ai_protocol); // create socket
-        bind (server_fd, server_info->ai_addr, server_info->ai_addrlen);
+        server_fd = socket(server_info->ai_family, server_info->ai_socktype,
+                               server_info->ai_protocol); // create socket
+        int buf;
+        if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &buf, sizeof(int)) == -1) {
+            perror("setsockopt");
+            exit(1);
+        }
+        bind(server_fd, server_info->ai_addr, server_info->ai_addrlen);
         cout << "Manager binded to port " << port.str() << endl;
+        return server_fd;
+    }
 
+
+
+
+    void Listen() {
+        fd_set read_fds, sockets;
+        FD_ZERO(&read_fds);
+        int fdmax, newfd;
+
+        // Listen on the server socket
         listen(server_fd, 10);  // 10 is max connectors - might need fixing
 
-        struct sockaddr_in other_address;
-        socklen_t addr_size;
+        FD_SET(server_fd, &sockets);
+        fdmax = server_fd;
 
-        int other_fd = accept(server_fd, (struct sockaddr *) &other_address, &addr_size);
+        while(true) {
+            read_fds = sockets;
+            select(fdmax + 1, &read_fds, NULL, NULL, NULL);
 
-        cout << other_address.sin_port << endl;
-        cout << "Manager found a connection" << endl;
+            for (int i = 0; i <= fdmax; i++) {
+
+                // there is change in a socket
+                if (FD_ISSET(i, &read_fds)) {
+                    // new connection on the listener
+                    if (i == server_fd) {
+                        cout << "Manager found a connection" << endl;
+                        struct sockaddr_in other_address;
+                        socklen_t addr_size;
+                        newfd = accept(server_fd, (struct sockaddr *) &other_address, &addr_size);
+
+                        if (newfd < 0) {
+                            cerr << "Accept error: file descriptor not valid" << endl;
+
+                        } else {
+                            FD_SET(newfd, &sockets);    // add new accepted socket to the set
+                            if (newfd > fdmax) { fdmax = newfd; }
+                        }
+                        // a message is received from an already connected client socket
+                    } else {
+                        // do something
+                    }
+                }
+            }
+        }
+
     }
+
+
 
     // Wait for all children to exit
     void Wait() {
@@ -123,6 +168,7 @@ class Manager {
     }
 
   private:
+    int server_fd;
     int output;   // output file fd
     int count;    // number of children
     vector<string> lines;
@@ -161,6 +207,7 @@ class Router {
             exit(1);
         }
         int manager_fd = socket(server_info->ai_family, server_info->ai_socktype, server_info->ai_protocol); // create socket
+        sleep(1);
         status = connect (manager_fd, server_info->ai_addr, server_info->ai_addrlen);
         if (status == -1) {
             cerr << port << " Error: Failed to connect to manager" << endl;
