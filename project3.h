@@ -157,10 +157,6 @@ class Manager {
                             FD_SET(newfd, &sockets);    // add new accepted socket to the set
                             if (newfd > fdmax) { fdmax = newfd; }
                         }
-                        // send some shit back
-                        char* msg = "Hello";
-                        send(newfd, msg, sizeof(msg), 0);
-
 
                     } else {
                         // do something
@@ -181,10 +177,25 @@ class Manager {
 		routers[i].fd = sockfd;
 		routers[i].UDPPort = newPort;
 		routers[i].ID = i;
-		
-		cout << routers[i].fd << " " << routers[i].UDPPort << " " << routers[i].ID << endl;
+        string neighbors = findNeighbors(routers[i].ID);
+        cout << routers[i].ID << " neighbors: " << neighbors << endl;
+
+//		cout << routers[i].fd << " " << routers[i].UDPPort << " " << routers[i].ID << endl;
 	}
 
+    string findNeighbors(int id) {
+        string result;
+        for (int i = 0; i < count; i++) {
+            string line = lines[i];
+            stringstream ss(line);
+            int first, second;
+            ss >> first >> second;
+            if (first == id || second == id) {
+                result += line + "|";
+            }
+        }
+        return result;
+    }
     // Wait for all children to exit
     void Wait() {
         int status;
@@ -239,7 +250,7 @@ class Router {
         sleep(1);
         status = connect (manager_fd, server_info->ai_addr, server_info->ai_addrlen);
         if (status == -1) {
-            cerr << port << " Error: Failed to connect to manager" << endl;
+            perror(" Error: Failed to connect to manager");
         }
 
         cout << port << " connected" << endl;
@@ -253,9 +264,9 @@ class Router {
         char buffer[1024];
 
         // wait to receive info back from manager
-        numbytes = recv(manager_fd, buffer, sizeof(buffer), 0);
+//        numbytes = recv(manager_fd, buffer, sizeof(buffer), 0);
 
-        cout << port << " received: " << buffer << endl;
+//        cout << port << " received: " << buffer << endl;
 
 
         close(manager_fd);
