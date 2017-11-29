@@ -132,9 +132,7 @@ class Manager {
         while(true) {
             read_fds = sockets;
             select(fdmax + 1, &read_fds, NULL, NULL, NULL);
-
             for (int i = 0; i <= fdmax; i++) {
-
                 // there is change in a socket
                 if (FD_ISSET(i, &read_fds)) {
                     // new connection on the listener
@@ -145,43 +143,46 @@ class Manager {
 
                         // accept connection from child
                         newfd = accept(server_fd, (struct sockaddr *) &other_address, &addr_size);
-
-						 if (counter < 10) {
-						  		readRouterInfo(newfd, counter);
-								 counter++;
-						    }
-
                         if (newfd < 0) {
                             cerr << "Accept error: file descriptor not valid" << endl;
                         } else {
                             FD_SET(newfd, &sockets);    // add new accepted socket to the set
                             if (newfd > fdmax) { fdmax = newfd; }
                         }
-
-                    } else {
-                        // do something
+                        if (counter < count) {
+                            InitializeRouter(newfd, counter);
+                            counter++;
+                        }
                     }
                 }
             }
         }
-
     }
 
-	// Fill out router structs
-	void readRouterInfo(int sockfd, int i) {
+	// Fill out a router struct for a given fd and id
+    // Calculates its neighbors
+    // Constructs init packet to send back to the router (?)
+	void InitializeRouter(int sockfd, int id) {
 		char buffer[256]; 
 		int numbytes = recv(sockfd, buffer, 255, 0);
 		int newPort = atoi(buffer);
 		cout << buffer << " Received by Manager " << endl;
 		routers.push_back(Children());
-		routers[i].fd = sockfd;
-		routers[i].UDPPort = newPort;
-		routers[i].ID = i;
-        string neighbors = findNeighbors(routers[i].ID);
-        cout << routers[i].ID << " neighbors: " << neighbors << endl;
+		routers[id].fd = sockfd;
+		routers[id].UDPPort = newPort;
+		routers[id].ID = id;
+        string neighbors = findNeighbors(id);
+        cout << id << " neighbors: " << neighbors << endl;
 
-//		cout << routers[i].fd << " " << routers[i].UDPPort << " " << routers[i].ID << endl;
+        stringstream packet;
+        packet << "|" << id << "|" << count << "|" << neighbors;
+        cout << packet.str() << endl;
+        const char* msg = packet.str().c_str();
 	}
+    /* Packet Structure for now
+        - Starts with '|' and each field is separated by '|'
+        |[Router ID]|[Router count]|Neighbor line 1|Neighbor line 2|...|
+    */
 
     string findNeighbors(int id) {
         string result;
@@ -190,8 +191,13 @@ class Manager {
             stringstream ss(line);
             int first, second;
             ss >> first >> second;
-            if (first == id || second == id) {
-                result += line + "|";
+            // if a match, get port and save line
+            if (first == id) {
+                int neighbor_port = routers[second].UDPPort;
+                result += line + " " + to_string(neighbor_port) + "|";  // 0 1 50 9571|
+            } else if (second == id) {
+                int neighbor_port = routers[first].UDPPort;
+                result += line + " " + to_string(neighbor_port) + "|";  // 0 1 50 9571|
             }
         }
         return result;
