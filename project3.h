@@ -8,6 +8,7 @@
 #include <netinet/in.h>
 #include <vector>
 #include <sys/wait.h>
+#include <ctime>
 #include <unistd.h>
 #include <fstream>
 #include <fcntl.h>
@@ -21,7 +22,7 @@
 using namespace std;
 
 void parentFunction(string in);
-void childFunction(int fd, int port, bool debug);
+void childFunction(int port, bool debug);
 
 static int MANAGER_PORT = 8880;
 
@@ -39,7 +40,6 @@ class Manager {
     Manager(string filename) {
         count = 0;
         ReadFile(filename);
-        int output = open("test.txt", O_CREAT|O_TRUNC|O_WRONLY, 0666);
     }
 
     void ReadFile(string filename) {
@@ -76,9 +76,9 @@ class Manager {
                 perror("Fork failed");
             } else if(pid[i] == 0) {
                 if (i % 2 == 0) {
-                    childFunction(output, port, true);  // have child do something (write to file for now)
+                    childFunction(port, true);  // have child do something (write to file for now)
                 } else {
-                    childFunction(output, port, false);  // have child do something (write to file for now)
+                    childFunction(port, false);  // have child do something (write to file for now)
                 }
 
                 exit(0); // so children don't continue to fork
@@ -206,6 +206,17 @@ class Manager {
         }
         return result;
     }
+	
+	void writeOutput(string msg) {
+		ofstream output;
+		output.open("Manager.out", ofstream::app);
+		stringstream s;
+		time_t timeStamp = time(nullptr);
+		s << asctime(localtime(&timeStamp));
+		string stamp = s.str();
+		output << "[" << stamp.substr(0, stamp.length()-1) << "] " << msg << '\n';
+	}
+	
     // Wait for all children to exit
     void Wait() {
         int status;
@@ -219,7 +230,6 @@ class Manager {
 
   private:
     int server_fd;
-    int output;   // output file fd
     int count;    // number of children
     vector<string> lines;
 	vector<Children> routers;
