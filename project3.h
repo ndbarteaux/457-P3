@@ -196,7 +196,7 @@ class Manager {
 
     // after initial listen, wait for all routers to send a ready signal.
     // then, send an ack back to all so the routing algorithm can begin
-    void WaitForRouters() {
+    int WaitForRouters() {
         fd_set current = sockets;
         int counter = 0;
         while(true) {
@@ -221,6 +221,7 @@ class Manager {
                             int current_fd = getFD(j);
                             Send(current_fd, "ACKREADY");
                         }
+		    	return 0;
                     }
                 }
             }
