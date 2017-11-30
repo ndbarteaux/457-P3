@@ -566,8 +566,8 @@ class Router {
 
     void ReliableFlood() {
         for (int i=0; i < router_count; i++) {
-            if (costs[router_count][i] != 0) {
-                // send shit
+            if (costs[router_id][i] != 0) {
+                cout << router_id << " Neighbor " << i << " Cost: " << costs[router_id][i] << endl;
             }
 
         }
