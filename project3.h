@@ -208,7 +208,7 @@ class Manager {
                     char buf[255];
                     recv(i, buf, 255, 0);
 					int routerID = getID(i);
-                    cout << "Received " << buf << " from " << i << endl;
+                    cout << "Received " << buf << " from " << routerID << endl;
                     FD_CLR(i, &current);
                     if (counter==count) {
                         // do something
