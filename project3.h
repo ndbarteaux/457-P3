@@ -398,11 +398,6 @@ class Router {
 		portstream << port;
 		string udpPort = portstream.str();
 
-		// Router Logging
-		out = "Sending the following data to manager.";
-		writeRouter(out);
-		writeRouter(udpPort);
-
         // send udp port to manager
         SendToManager(to_string(port));
 
