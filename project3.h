@@ -209,9 +209,14 @@ class Manager {
                     recv(i, buf, 255, 0);
 					int routerID = getID(i);
                     cout << "Received " << buf << " from " << routerID << endl;
+					stringstream msg;
+					msg << "READY status received from Router " << routerID;
+					string out = msg.str();
+					writeOutput(out);
                     FD_CLR(i, &current);
                     if (counter==count) {
-                        // do something
+                        out = "All router READY status received. Sending ACK to start next process.";
+						writeOutput(out);
                     }
                 }
             }
@@ -412,6 +417,9 @@ class Router {
 
 
     int SendToManager(string msg) {
+		string out = "Sending the following data to manager.";
+		writeRouter(out);
+		writeRouter(msg);
         cout << "sending: '" << msg << "'" << endl;
         int status =  send(tcp_fd, msg.c_str(), sizeof(msg.c_str()), 0);
         if (status == -1) {
