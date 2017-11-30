@@ -129,9 +129,9 @@ class Manager {
 		out = msg.str();
 		writeOutput(out);
 
+
         return server_fd;
     }
-
 
     int fdmax;
     fd_set read_fds, sockets;
@@ -352,6 +352,7 @@ class Router {
 
   public:
     Router(int new_port) {
+        router_count = 0;
         pid = getpid();
         port = new_port;
 		stringstream out;
@@ -372,7 +373,7 @@ class Router {
 
         int status = getaddrinfo(NULL, manager_port.str().c_str(), &info, &server_info);
         if (status != 0) {
-            cerr << "getaddrinfo error: " << gai_strerror(status) << endl;
+            cerr << "getaddrinfo error[][]: " << gai_strerror(status) << endl;
             exit(1);
         }
         tcp_fd = socket(server_info->ai_family, server_info->ai_socktype, server_info->ai_protocol); // create socket
@@ -445,12 +446,27 @@ class Router {
         return result;
     }
 
+    void InitializeCosts() {
+        costs = new int*[router_count];
+        for (int i = 0; i < router_count; ++i) {
+            costs[i] = new int[router_count];
+        }
 
+    }
+    ~Router() {
+        if (router_count != 0) {
+            for (int i = 0; i < router_count; ++i) {
+                delete [] costs[i];
+            }
+            delete [] costs;
+        }
+    }
     void InitializeNeighbors(string packet) {
         vector<string> tokens = split_string(packet, "|");
 
         router_id = atoi(tokens[0].c_str());
         router_count = atoi(tokens[1].c_str());
+        InitializeCosts();
 		stringstream msg;
 		msg << "Router No - " << router_id;
 		string out = msg.str();
@@ -566,6 +582,7 @@ class Router {
     int Count() { return router_count; }
 
 private:
+    int **costs;
     int pid;
     int router_id;
     int router_count;
