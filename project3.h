@@ -488,6 +488,7 @@ class Router {
 		out = "Following are the immediate neighbours.";
 		writeRouter(out);
 		
+		neighborString << "|" << router_id << "|";
         for (int i = 2; i < tokens.size(); ++i) {
             vector<string> neighbor_data = split_string(tokens[i], " "); // splits up info in 1 neighbor line
             int other_id;
@@ -500,7 +501,7 @@ class Router {
             int other_port = atoi(neighbor_data[3].c_str());
             costs[router_id][other_id] = cost;               // store cost in cost grid
             ports[other_id] = other_port; // store port in port table
-
+			neighborString << router_id << " " << other_id << " " << cost << " " << other_port << "|";
             stringstream message;
 			message << "Neighbor ID - " << other_id << "  Neighbor Cost - " << cost << "  Neighbor Port - " << other_port;
 			string output = message.str();
@@ -550,27 +551,29 @@ class Router {
         address.sin_family = AF_INET;
         address.sin_port = htons(dest_port);
         inet_pton(AF_INET, "127.0.0.1", &address.sin_addr);  // store localhost address in structure
-
-        string packet = "Hello world";
-        sendto(udp_fd, packet.c_str(), sizeof(packet), 0, (struct sockaddr *) &address, sizeof(address));
+        sendto(udp_fd, msg.c_str(), msg.length(), 0, (struct sockaddr *) &address, sizeof(address));
     }
 
     void Receive(int fd) {
-        struct sockaddr_in remoteaddr;
+        struct sockaddr_storage remoteaddr;
         socklen_t addrlen = sizeof(remoteaddr);            /* length of addresses */
-        char buf[256];
-        recvfrom(fd, buf, sizeof(buf), 0, (struct sockaddr *) &remoteaddr, &addrlen);
-
-        cout << port << " received msg: " << buf << endl;
+        char buf[512];
+       int numbytes = recvfrom(fd, buf, sizeof(buf), 0, (struct sockaddr *) &remoteaddr, &addrlen);
+        cout << router_id << " received msg: " << buf << endl;
+		
     }
 
     void ReliableFlood() {
         for (int i=0; i < router_count; i++) {
             if (costs[router_id][i] != 0) {
+				// Packet to neighbor |[SenderID]|[SenderID] [Neighbor] [Cost] [NeighborPort]| ...
                 cout << router_id << " Neighbor " << i << " Cost: " << costs[router_id][i] << endl;
+				int sent = Send(ports[i], neighborString.str());
             }
-
         }
+		for (int i=0; i < router_count; i++) {
+			Receive(udp_fd);
+		}
     }
 
 	void writeRouter(string msg) {
@@ -604,6 +607,7 @@ class Router {
     int router_id;
     int router_count;
     int port;
+	stringstream neighborString;
     int udp_fd;
     int tcp_fd;
     vector<int> ports;
