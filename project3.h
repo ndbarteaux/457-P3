@@ -219,6 +219,10 @@ class Manager {
 						writeOutput(out);
                         for (int j = 0; j < count; j++) {
                             int current_fd = getFD(j);
+							int current_id = getID(current_fd);
+							stringstream msg;
+							msg << "Sent ACKREADY to router " << current_id;
+							writeOutput(msg.str());
                             Send(current_fd, "ACKREADY");
                         }
 		    	return 0;
@@ -403,9 +407,6 @@ class Router {
 
         // get response from manager
         string response = RecvFromManager();
-		out = "Receiving Node information from the manager.";
-		writeRouter(out);
-		writeRouter(response);
         InitializeNeighbors(response);
         cout << router_id << " initialized successfully" << endl;
     }
@@ -438,6 +439,9 @@ class Router {
         for (int i = 0; i < msg_size - 5; i++) {
             result += static_cast<char>(response[i+4]);
         }
+		string out = "Receiving Node information from the manager.";
+		writeRouter(out);
+		writeRouter(result);
         return result;
     }
 
