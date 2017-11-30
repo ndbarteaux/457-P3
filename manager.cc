@@ -7,7 +7,8 @@ void parentFunction(string in) {
     manager.CreateTCPSocket();
     manager.InitialListen();
 
-    manager.WaitForRouters();
+    manager.WaitForRouters("READY");
+    manager.WaitForRouters("LBReady");
 
     // TCP shit, talking to the routers
 
