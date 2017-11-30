@@ -206,12 +206,19 @@ class Manager {
                     // something is received?
                     char buf[255];
                     recv(i, buf, 255, 0);
-
+					int routerID = getID(i);
+					cout << "RECEIVED:  " << buf << "FROM: " << routerID << endl;
                 }
             }
         }
     }
 
+	int getID(int fd) {
+		for(int i=0; i<routers.size(); i++) {
+			if (routers[i].fd == fd) 
+				return routers[i].ID;	
+		}
+	}
 
 	// Fill out a router struct for a given fd and id
     // Calculates its neighbors
