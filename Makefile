@@ -3,3 +3,4 @@ all:
 
 clean:
 	rm -f manager
+	rm *.out
