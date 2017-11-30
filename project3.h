@@ -321,27 +321,6 @@ class Router {
         //write(output, "Hello World!\n", 13);
     }
 
-    /** store a 32-bit int into a char buffer */
-    void Pack(unsigned char *buf, unsigned int i) {
-        buf[3] = i & 0x0FF;
-        i >>= 8;
-        buf[2] = i & 0x0FF;
-        i >>= 8;
-        buf[1] = i & 0x0FF;
-        i >>= 8;
-        buf[0] = i;
-    }
-
-
-    /** Unpack a 32-bit unsigned from a char buffer  */
-    unsigned int Unpack(unsigned char *buf) {
-
-        return (unsigned int) (buf[0]<<24) |
-               (buf[1]<<16)  |
-               (buf[2]<<8)  |
-               buf[3];
-    }
-
     void CreateTCPSocket() {
         struct addrinfo info;
         struct addrinfo *server_info;  // will point to the results
