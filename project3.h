@@ -562,6 +562,7 @@ class Router {
         socklen_t addrlen = sizeof(remoteaddr);            /* length of addresses */
         char buf[512];
        int numbytes = recvfrom(fd, buf, sizeof(buf), 0, (struct sockaddr *) &remoteaddr, &addrlen);
+	   buf[numbytes] = '\0';
 	   int senderPort = ntohs(remoteaddr.sin_port);
 	   stringstream out;
 	   out << "Received " << buf << " from neighbor router with port " << senderPort;
