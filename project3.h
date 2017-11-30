@@ -32,12 +32,6 @@ struct Children {
 	int ID;
 };
 
-struct Link {
-    int dest_id;
-    int cost;
-    int port;
-};
-
 class Manager {
 
   public:
@@ -410,6 +404,11 @@ class Router {
         string response = RecvFromManager();
         InitializeNeighbors(response);
         cout << router_id << " initialized successfully" << endl;
+        if (router_id == 0) {
+            for (int i = 0; i < router_count; ++i) {
+                cout << ports[i] << endl;
+            }
+        }
     }
 
 
@@ -447,10 +446,18 @@ class Router {
     }
 
     void InitializeCosts() {
+        // initialize
         costs = new int*[router_count];
         for (int i = 0; i < router_count; ++i) {
             costs[i] = new int[router_count];
         }
+        // set all to 0
+        for (int i = 0; i < router_count; ++i) {
+            for (int j = 0; j < router_count; ++j) {
+                costs[i][j] = 0;
+            }
+        }
+        ports = vector<int>(router_count);  // make sure ports vector is allocated
 
     }
     ~Router() {
@@ -462,12 +469,15 @@ class Router {
         }
     }
     void InitializeNeighbors(string packet) {
+        cout << "Made it here" << endl;
         vector<string> tokens = split_string(packet, "|");
 
         router_id = atoi(tokens[0].c_str());
         router_count = atoi(tokens[1].c_str());
+
         InitializeCosts();
-		stringstream msg;
+
+        stringstream msg;
 		msg << "Router No - " << router_id;
 		string out = msg.str();
 		writeRouter(out);
@@ -479,20 +489,22 @@ class Router {
 		writeRouter(out);
 		
         for (int i = 2; i < tokens.size(); ++i) {
-			stringstream message;
             vector<string> neighbor_data = split_string(tokens[i], " "); // splits up info in 1 neighbor line
-            Link neighbor = Link();
+            int other_id;
             if (neighbor_data[0] == to_string(router_id)) {
-                neighbor.dest_id = atoi(neighbor_data[1].c_str());
+                other_id = atoi(neighbor_data[1].c_str());
             } else {
-                neighbor.dest_id = atoi(neighbor_data[0].c_str());
+                other_id = atoi(neighbor_data[0].c_str());
             }
-            neighbor.cost = atoi(neighbor_data[2].c_str());
-            neighbor.port = atoi(neighbor_data[3].c_str());
-			message << "Neighbor ID - " << neighbor.dest_id << "  Neighbor Cost - " << neighbor.cost << "  Neighbor Port - " << neighbor.port;
+            int cost = atoi(neighbor_data[2].c_str());
+            int other_port = atoi(neighbor_data[3].c_str());
+            costs[router_id][other_id] = cost;               // store cost in cost grid
+            ports[other_id] = other_port; // store port in port table
+
+            stringstream message;
+			message << "Neighbor ID - " << other_id << "  Neighbor Cost - " << cost << "  Neighbor Port - " << other_port;
 			string output = message.str();
 			writeRouter(output);
-            neighbors.push_back(neighbor);
         }
     }
 
@@ -553,7 +565,12 @@ class Router {
     }
 
     void ReliableFlood() {
+        for (int i=0; i < router_count; i++) {
+            if (costs[router_count][i] != 0) {
+                // send shit
+            }
 
+        }
     }
 
 	void writeRouter(string msg) {
@@ -581,7 +598,7 @@ class Router {
     int ID() { return router_id; }
     int Count() { return router_count; }
 
-private:
+  private:
     int **costs;
     int pid;
     int router_id;
@@ -589,7 +606,7 @@ private:
     int port;
     int udp_fd;
     int tcp_fd;
-    vector<Link> neighbors;
+    vector<int> ports;
 
 };
 
