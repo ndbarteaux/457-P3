@@ -5,7 +5,9 @@ void parentFunction(string in) {
     Manager manager(in);
     manager.SpawnRouters();
     manager.CreateTCPSocket();
-    manager.Listen();
+    manager.InitialListen();
+
+    manager.WaitForRouters();
 
     // TCP shit, talking to the routers
 
