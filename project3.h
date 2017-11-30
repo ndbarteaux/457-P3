@@ -45,6 +45,10 @@ class Manager {
     Manager(string filename) {
         count = 0;
         ReadFile(filename);
+		stringstream out;
+		out << "Manager Log file created";
+		string s = out.str();
+		writeOutput(s);
     }
 
     void ReadFile(string filename) {
@@ -110,13 +114,24 @@ class Manager {
         }
         server_fd = socket(server_info->ai_family, server_info->ai_socktype,
                                server_info->ai_protocol); // create socket
-        int buf;
+        int buf = 1;
         if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &buf, sizeof(int)) == -1) {
             perror("setsockopt");
             exit(1);
         }
         bind(server_fd, server_info->ai_addr, server_info->ai_addrlen);
-        cout << "Manager binded to port " << port.str() << endl;
+
+		// Write To Outfile
+	    cout << "Manager binded to port " << port.str() << endl;
+		stringstream msg;
+		msg << "Manager TCP Server Started.";
+		string out = msg.str();
+		writeOutput(out);
+		msg.str("");
+		msg << "Manager IP Address - 127.0.0.1    Port No - " << MANAGER_PORT << "    Total Routers - " << count;
+		out = msg.str();
+		writeOutput(out);
+
         return server_fd;
     }
 
@@ -129,6 +144,9 @@ class Manager {
         int fdmax, newfd;
 		
         // Listen on the server socket
+		string out = "Listening to routers for TCP connections.";
+		writeOutput(out);
+
         listen(server_fd, 10);  // 10 is max connectors - might need fixing
 
         FD_SET(server_fd, &sockets);
@@ -176,12 +194,18 @@ class Manager {
 		routers[id].UDPPort = newPort;
 		routers[id].ID = id;
 		if (id+1 == count) {
+			string out = "All routers have connected. Sending node address and routing information to routers.";
+			writeOutput(out);
 			for(int i=0; i<=id; i++) {
                 string neighbors = findNeighbors(i);
                 stringstream msg;
+				stringstream outFile;
                 msg << "|" << i << "|" << count << "|" << neighbors;
                 int fd = routers[i].fd;
                 Send(fd, msg.str());
+				outFile << "Sent " << msg.str() << " to router " << i;
+				out = outFile.str();
+				writeOutput(out);
 			}
 		}
 	}
@@ -258,7 +282,7 @@ class Manager {
 		time_t timeStamp = time(nullptr);
 		s << asctime(localtime(&timeStamp));
 		string stamp = s.str();
-		output << "[" << stamp.substr(0, stamp.length()-1) << "] " << msg << '\n';
+		output << "[" << stamp.substr(0, stamp.length()-1) << "]: " << msg << '\n';
 	}
 	
     // Wait for all children to exit
@@ -289,6 +313,33 @@ class Router {
     Router(int new_port) {
         pid = getpid();
         port = new_port;
+		stringstream out;
+		out << "Router Log file " << pid << ".out created";
+		string s = out.str();
+		writeRouter(s);
+        //cout << "Forked child with PID of " << pid << endl;
+        //write(output, "Hello World!\n", 13);
+    }
+
+    /** store a 32-bit int into a char buffer */
+    void Pack(unsigned char *buf, unsigned int i) {
+        buf[3] = i & 0x0FF;
+        i >>= 8;
+        buf[2] = i & 0x0FF;
+        i >>= 8;
+        buf[1] = i & 0x0FF;
+        i >>= 8;
+        buf[0] = i;
+    }
+
+
+    /** Unpack a 32-bit unsigned from a char buffer  */
+    unsigned int Unpack(unsigned char *buf) {
+
+        return (unsigned int) (buf[0]<<24) |
+               (buf[1]<<16)  |
+               (buf[2]<<8)  |
+               buf[3];
     }
 
     void CreateTCPSocket() {
@@ -307,17 +358,45 @@ class Router {
             exit(1);
         }
         tcp_fd = socket(server_info->ai_family, server_info->ai_socktype, server_info->ai_protocol); // create socket
+
+		// Router Logging
+		string out = "TCP and UDP Sockets created.";
+		writeRouter(out);
+		stringstream message;
+		message << "TCP Port No - " << MANAGER_PORT;
+		out = message.str();
+		writeRouter(out);
+		message.str("");
+		message << "UDP Port No - " << port;
+		out = message.str();
+		writeRouter(out);
+		message.str("");
+		out = "Waiting to connect to the manager...";
+		writeRouter(out);
+
         sleep(1);
         status = connect (tcp_fd, server_info->ai_addr, server_info->ai_addrlen);
         if (status == -1) {
             perror(" Error: Failed to connect to manager");
         }
         cout << port << " connected" << endl;
+		stringstream portstream;
+		portstream << port;
+		string udpPort = portstream.str();
+
+		// Router Logging
+		out = "Sending the following data to manager.";
+		writeRouter(out);
+		writeRouter(udpPort);
+
         // send udp port to manager
         SendToManager(to_string(port));
 
         // get response from manager
         string response = RecvFromManager();
+		out = "Receiving Node information from the manager.";
+		writeRouter(out);
+		writeRouter(response);
         cout << response << endl;
         InitializeNeighbors(response);
     }
@@ -438,6 +517,19 @@ class Router {
 
         cout << port << " received msg: " << buf << endl;
     }
+
+	void writeRouter(string msg) {
+		stringstream name;
+		name << pid << ".out";
+		string filename = name.str();
+		ofstream output;
+		output.open(filename, ofstream::app);
+		stringstream s;
+		time_t timeStamp = time(nullptr);
+		s << asctime(localtime(&timeStamp));
+		string stamp = s.str();
+		output << "[" << stamp.substr(0, stamp.length()-1) << "]: " << msg << '\n';
+	}
 
     /** Unpack a 32-bit unsigned from a char buffer  */
     unsigned int Unpack(unsigned char *buf) {
