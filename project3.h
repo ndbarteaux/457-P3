@@ -197,15 +197,22 @@ class Manager {
     // after initial listen, wait for all routers to send a ready signal.
     // then, send an ack back to all so the routing algorithm can begin
     void WaitForRouters() {
-        cout << "MANAGER 2ND SELECT METHOD" << endl;
+        fd_set current = sockets;
+        int counter = 0;
         while(true) {
-            read_fds = sockets;
+            read_fds = current;
             select(fdmax + 1, &read_fds, NULL, NULL, NULL);
             for (int i = 0; i <= fdmax; i++) {
                 if (FD_ISSET(i, &read_fds)) {
-                    // something is received?
+                    counter++;
                     char buf[255];
                     recv(i, buf, 255, 0);
+                    cout << "Received " << buf << " from " << i << endl;
+                    FD_CLR(i, &current);
+                    if (counter==count) {
+                        // do something
+                    }
+
 
                 }
             }
