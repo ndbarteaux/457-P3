@@ -207,7 +207,8 @@ class Manager {
                     counter++;
                     char buf[255];
                     recv(i, buf, 255, 0);
-                    cout << "Received " << buf << " from " << i << endl;
+					int routerID = getID(i);
+					cout << "RECEIVED:  " << buf << "FROM: " << routerID << endl;
                     FD_CLR(i, &current);
                     if (counter==count) {
                         // do something
@@ -219,6 +220,12 @@ class Manager {
         }
     }
 
+	int getID(int fd) {
+		for(int i=0; i<routers.size(); i++) {
+			if (routers[i].fd == fd)
+				return routers[i].ID;
+		}
+	}
 
 	// Fill out a router struct for a given fd and id
     // Calculates its neighbors
