@@ -41,7 +41,6 @@ struct Link {
 class Manager {
 
   public:
-
     Manager(string filename) {
         count = 0;
         ReadFile(filename);
@@ -55,11 +54,9 @@ class Manager {
         ifstream input(filename);
         string line;
         if (input.is_open()) {
-            // children holds how many forks to spawn, read from first line of file
             getline(input, line);
             istringstream numChildren(line);
             numChildren >> this->count;
-
             while (getline(input, line)) {
                 stringstream sstream;
                 sstream << line;
@@ -136,12 +133,12 @@ class Manager {
     }
 
 
+    int fdmax;
+    fd_set read_fds, sockets;
 
-
-    void Listen() {
-        fd_set read_fds, sockets;
+    int InitialListen() {
         FD_ZERO(&read_fds);
-        int fdmax, newfd;
+        int newfd;
 		
         // Listen on the server socket
 		string out = "Listening to routers for TCP connections.";
@@ -175,11 +172,46 @@ class Manager {
                             InitializeRouter(newfd, counter);
                             counter++;
                         }
+                        if (counter == count) {
+                            string out = "All routers have connected. Sending node address and routing information to routers.";
+                            writeOutput(out);
+                            for(int j=0; j<count; j++) {
+                                string neighbors = findNeighbors(j);
+                                stringstream msg;
+                                stringstream outFile;
+                                msg << "|" << j << "|" << count << "|" << neighbors;
+                                int fd = routers[j].fd;
+                                Send(fd, msg.str());
+                                outFile << "Sent " << msg.str() << " to router " << j;
+                                out = outFile.str();
+                                writeOutput(out);
+                            }
+                            return 0;
+                        }
                     }
                 }
             }
         }
     }
+
+    // after initial listen, wait for all routers to send a ready signal.
+    // then, send an ack back to all so the routing algorithm can begin
+    void WaitForRouters() {
+        cout << "MANAGER 2ND SELECT METHOD" << endl;
+        while(true) {
+            read_fds = sockets;
+            select(fdmax + 1, &read_fds, NULL, NULL, NULL);
+            for (int i = 0; i <= fdmax; i++) {
+                if (FD_ISSET(i, &read_fds)) {
+                    // something is received?
+                    char buf[255];
+                    recv(i, buf, 255, 0);
+
+                }
+            }
+        }
+    }
+
 
 	// Fill out a router struct for a given fd and id
     // Calculates its neighbors
@@ -193,21 +225,7 @@ class Manager {
 		routers[id].fd = sockfd;
 		routers[id].UDPPort = newPort;
 		routers[id].ID = id;
-		if (id+1 == count) {
-			string out = "All routers have connected. Sending node address and routing information to routers.";
-			writeOutput(out);
-			for(int i=0; i<=id; i++) {
-                string neighbors = findNeighbors(i);
-                stringstream msg;
-				stringstream outFile;
-                msg << "|" << i << "|" << count << "|" << neighbors;
-                int fd = routers[i].fd;
-                Send(fd, msg.str());
-				outFile << "Sent " << msg.str() << " to router " << i;
-				out = outFile.str();
-				writeOutput(out);
-			}
-		}
+
 	}
 
     // constructs and sends a packet to a specific router
@@ -305,11 +323,13 @@ class Manager {
 };
 
 
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 class Router {
 
   public:
-
     Router(int new_port) {
         pid = getpid();
         port = new_port;
@@ -317,11 +337,9 @@ class Router {
 		out << "Router Log file " << pid << ".out created";
 		string s = out.str();
 		writeRouter(s);
-        //cout << "Forked child with PID of " << pid << endl;
-        //write(output, "Hello World!\n", 13);
     }
 
-    void CreateTCPSocket() {
+    void InitializeTCP() {
         struct addrinfo info;
         struct addrinfo *server_info;  // will point to the results
         memset(&info, 0, sizeof info);
@@ -376,13 +394,17 @@ class Router {
 		out = "Receiving Node information from the manager.";
 		writeRouter(out);
 		writeRouter(response);
-        cout << response << endl;
         InitializeNeighbors(response);
+        cout << router_id << " initialized successfully" << endl;
     }
 
 
     int SendToManager(string msg) {
-        return send(tcp_fd, msg.c_str(), sizeof(msg.c_str()), 0);
+        cout << "sending: '" << msg << "'" << endl;
+        int status =  send(tcp_fd, msg.c_str(), sizeof(msg.c_str()), 0);
+        if (status == -1) {
+            perror("shit fucked");
+        }
     }
 
 
@@ -442,7 +464,6 @@ class Router {
 
     vector<string> split_string(string s, string delim) {
         vector<string> tokens;
-
         while (s.length() > 0) {
             if (s.find(delim) == -1) {
                 tokens.push_back(s);
@@ -458,26 +479,22 @@ class Router {
 
     int CreateUDPSocket() {
         int status;
-
         udp_fd = socket(AF_INET, SOCK_DGRAM, 0);  // UDP socket fd
         if (udp_fd < 0) {
             perror("Failed to create socket");
             exit(1);
         }
-
         struct sockaddr_in myaddr;      // address object for my address
         memset(&myaddr, 0, sizeof(myaddr));
         myaddr.sin_family = AF_INET;
         myaddr.sin_addr.s_addr = htonl(INADDR_ANY);   // fill in local IP
         myaddr.sin_port = htons(port);
 
-
         status = bind(udp_fd, (struct sockaddr *) &myaddr, sizeof(myaddr));
         if (status != 0) {
             perror("Socket bind failed");
             exit(1);
         }
-        cout << "PID " << pid << "  Binded UDP socket to port " << port << endl;
         return udp_fd;
     }
 
