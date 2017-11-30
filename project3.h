@@ -411,7 +411,19 @@ class Router {
 
         router_id = atoi(tokens[0].c_str());
         router_count = atoi(tokens[1].c_str());
+		stringstream msg;
+		msg << "Router No - " << router_id;
+		string out = msg.str();
+		writeRouter(out);
+		msg.str("");
+		msg << "Total Routers - " << router_count;
+		out = msg.str();
+		writeRouter(out);
+		out = "Following are the immediate neighbours.";
+		writeRouter(out);
+		
         for (int i = 2; i < tokens.size(); ++i) {
+			stringstream message;
             vector<string> neighbor_data = split_string(tokens[i], " "); // splits up info in 1 neighbor line
             Link neighbor = Link();
             if (neighbor_data[0] == to_string(router_id)) {
@@ -421,6 +433,9 @@ class Router {
             }
             neighbor.cost = atoi(neighbor_data[2].c_str());
             neighbor.port = atoi(neighbor_data[3].c_str());
+			message << "Neighbor ID - " << neighbor.dest_id << "  Neighbor Cost - " << neighbor.cost << "  Neighbor Port - " << neighbor.port;
+			string output = message.str();
+			writeRouter(output);
             neighbors.push_back(neighbor);
         }
     }
