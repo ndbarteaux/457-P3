@@ -356,6 +356,22 @@ class Router {
             exit(1);
         }
         tcp_fd = socket(server_info->ai_family, server_info->ai_socktype, server_info->ai_protocol); // create socket
+		
+		// Router Logging
+		string out = "TCP and UDP Sockets created.";
+		writeRouter(out);
+		stringstream message;
+		message << "TCP Port No - " << MANAGER_PORT;
+		out = message.str();
+		writeRouter(out);
+		message.str("");
+		message << "UDP Port No - " << port;
+		out = message.str();
+		writeRouter(out);
+		message.str("");
+		out = "Waiting to connect to the manager...";
+		writeRouter(out);
+		
         sleep(1);
         status = connect (tcp_fd, server_info->ai_addr, server_info->ai_addrlen);
         if (status == -1) {
@@ -366,12 +382,20 @@ class Router {
 		stringstream portstream;
 		portstream << port;
 		string udpPort = portstream.str();
-
+		
+		// Router Logging
+		out = "Sending the following data to manager.";
+		writeRouter(out);
+		writeRouter(udpPort);
+		
         // send udp port to manager
         ssize_t numbytes = send(tcp_fd, udpPort.c_str(), sizeof(udpPort.c_str()), 0);
 
         // get response from manager
         string response = RecvFromManager();
+		out = "Receiving Node information from the manager.";
+		writeRouter(out);
+		writeRouter(response);
         cout << response << endl;
 
     }
