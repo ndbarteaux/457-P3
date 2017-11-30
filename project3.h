@@ -413,26 +413,15 @@ class Router {
         router_count = atoi(tokens[1].c_str());
         for (int i = 2; i < tokens.size(); ++i) {
             vector<string> neighbor_data = split_string(tokens[i], " "); // splits up info in 1 neighbor line
-            // still working on this
-
-//            cout << router_id << ": " << endl;
-//            for (int j = 0; j < 4; j++) {
-//                cout << neighbor_data[j] << " ";
-//            }
-//            Link neighbor = Link();
-//            if (neighbor_data[0] == to_string(router_id)) {
-//                cout << router_id << ": 1 '" << neighbor_data[0] << "'" << endl;
-//                neighbor.dest_id = atoi(neighbor_data[1].c_str());
-//            } else {
-//                cout << router_id << ": 2 '" << neighbor_data[0] << "'" << endl;
-//                neighbor.dest_id = atoi(neighbor_data[0].c_str());
-//            }
-//
-//            cout << endl;
-//            neighbor.cost = atoi(neighbor_data[2].c_str());
-//            neighbor.port = atoi(neighbor_data[3].c_str());
-//            cout << endl << router_id << " Neighbor:\n" << neighbor.dest_id << " " << neighbor.port << " " << neighbor.cost << endl;
-//            neighbors.push_back(neighbor);
+            Link neighbor = Link();
+            if (neighbor_data[0] == to_string(router_id)) {
+                neighbor.dest_id = atoi(neighbor_data[1].c_str());
+            } else {
+                neighbor.dest_id = atoi(neighbor_data[0].c_str());
+            }
+            neighbor.cost = atoi(neighbor_data[2].c_str());
+            neighbor.port = atoi(neighbor_data[3].c_str());
+            neighbors.push_back(neighbor);
         }
     }
 
