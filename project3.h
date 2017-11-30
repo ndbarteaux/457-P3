@@ -551,15 +551,22 @@ class Router {
         address.sin_family = AF_INET;
         address.sin_port = htons(dest_port);
         inet_pton(AF_INET, "127.0.0.1", &address.sin_addr);  // store localhost address in structure
+		stringstream out;
+		out << "Sent " << msg << " to router with port " << dest_port;
+		writeRouter(out.str());
         sendto(udp_fd, msg.c_str(), msg.length(), 0, (struct sockaddr *) &address, sizeof(address));
     }
 
     void Receive(int fd) {
-        struct sockaddr_storage remoteaddr;
+        struct sockaddr_in remoteaddr;
         socklen_t addrlen = sizeof(remoteaddr);            /* length of addresses */
         char buf[512];
        int numbytes = recvfrom(fd, buf, sizeof(buf), 0, (struct sockaddr *) &remoteaddr, &addrlen);
-        cout << router_id << " received msg: " << buf << endl;
+	   int senderPort = ntohs(remoteaddr.sin_port);
+	   stringstream out;
+	   out << "Received " << buf << " from neighbor router with port " << senderPort;
+	   writeRouter(out.str());
+       cout << router_id << " received msg: " << buf << endl;
 		
     }
 
