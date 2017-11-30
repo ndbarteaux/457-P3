@@ -208,10 +208,13 @@ class Manager {
                     char buf[255];
                     recv(i, buf, 255, 0);
 					int routerID = getID(i);
-					cout << "RECEIVED:  " << buf << "FROM: " << routerID << endl;
+					cout << "Received " << buf << " from " << routerID << endl;
                     FD_CLR(i, &current);
                     if (counter==count) {
-                        // do something
+                        for (int j = 0; j < count; j++) {
+                            int current_fd = getFD(j);
+                            Send(current_fd, "ACKREADY");
+                        }
                     }
 
 
@@ -221,11 +224,18 @@ class Manager {
     }
 
 	int getID(int fd) {
-		for(int i=0; i<routers.size(); i++) {
+		for (int i=0; i<routers.size(); i++) {
 			if (routers[i].fd == fd)
 				return routers[i].ID;
 		}
 	}
+
+    int getFD(int id) {
+        for (int i=0; i<routers.size(); i++) {
+            if (routers[i].ID == id)
+                return routers[i].fd;
+        }
+    }
 
 	// Fill out a router struct for a given fd and id
     // Calculates its neighbors
@@ -432,7 +442,6 @@ class Router {
         }
 
         int file_size = this->Unpack(response); // processes first 4 bytes of response to get msg length
-        cout << "Received packet stating size=" << file_size << endl;
 
         string result = "";
         for (int i = 0; i < msg_size - 5; i++) {
@@ -552,6 +561,10 @@ class Router {
                (buf[2]<<8)  |
                buf[3];
     }
+
+    //getters
+    int ID() { return router_id; }
+    int Count() { return router_count; }
 
 private:
     int pid;
