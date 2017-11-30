@@ -557,7 +557,7 @@ class Router {
         sendto(udp_fd, msg.c_str(), msg.length(), 0, (struct sockaddr *) &address, sizeof(address));
     }
 
-    void Receive(int fd) {
+    string Receive(int fd) {
         struct sockaddr_in remoteaddr;
         socklen_t addrlen = sizeof(remoteaddr);            /* length of addresses */
         char buf[512];
@@ -568,6 +568,7 @@ class Router {
 	   out << "Received " << buf << " from neighbor router with port " << senderPort;
 	   writeRouter(out.str());
        cout << router_id << " received msg: " << buf << endl;
+        return string(buf);
 		
     }
 
@@ -579,12 +580,70 @@ class Router {
 				int sent = Send(ports[i], neighborString.str());
             }
         }
-		for (int i=0; i < router_count; i++) {
-			Receive(udp_fd);
+        int counter = 0;
+		while (counter < router_count - 1) {
+			string packet = Receive(udp_fd);
+            if (readLSP(packet)) {
+                // forward packet to all neighbors
+                for (int i=0; i < router_count; i++) {
+                    if (costs[router_id][i] != 0) {
+                        cout << router_id << " forwarding to " << i << endl;
+                        int sent = Send(ports[i], packet);
+                    }
+                }
+                counter++;
+            }
 		}
+
+//        SendToManager()
     }
 
-	void writeRouter(string msg) {
+
+    bool readLSP(string LSP) {
+        vector<string> tokens = split_string(LSP, "|");
+        int recvd_id = atoi(tokens[0].c_str());
+        if (HaveReceived(recvd_id)) {
+            return false;
+        } else {
+            for (int i = 1; i < tokens.size(); ++i) {
+                vector<string> neighbor_data = split_string(tokens[i], " "); // splits up info in 1 neighbor line
+                int other_id;
+                if (neighbor_data[0] == to_string(recvd_id)) {
+                    other_id = atoi(neighbor_data[1].c_str());
+                } else {
+                    other_id = atoi(neighbor_data[0].c_str());
+                }
+                int cost = atoi(neighbor_data[2].c_str());
+                int other_port = atoi(neighbor_data[3].c_str());
+
+                costs[recvd_id][other_id] = cost;           // store new cost in cost grid
+
+                if (ports[other_id] == 0) {         // store port IF new
+                    ports[other_id] = other_port;
+                }
+
+                cout << recvd_id << ": ";
+                for (int j = 0; j < router_count; ++j) {
+                    cout << costs[recvd_id][j] << " ";
+                }
+                cout << endl;
+            }
+            return true;
+        }
+    }
+
+    bool HaveReceived(int id) {
+        bool received = false;
+        for (int i = 0; i < router_count; ++i) {
+            if (costs[id][i] != 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+
+    void writeRouter(string msg) {
 		stringstream name;
 		name << pid << ".out";
 		string filename = name.str();
