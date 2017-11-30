@@ -604,6 +604,19 @@ class Router {
     }
 
 
+    void ShortestPath() {
+        vector<int> set;
+        int min = INT_MAX;
+        for (int i = 0; i < router_count; i++) {
+            int cost = costs[router_id][i];
+            if ((cost != 0) && (cost < min)) {
+                min = cost;
+            }
+            set.push_back(min);
+        }
+
+    }
+
     string CreateLSP() {
         stringstream lsp;
         lsp << "|" << router_id << "|";
@@ -690,6 +703,7 @@ class Router {
     int port;
     int udp_fd;
     int tcp_fd;
+    vector<int> forwarding;
     vector<int> ports;
 
 };
