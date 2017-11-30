@@ -129,9 +129,9 @@ class Manager {
 		out = msg.str();
 		writeOutput(out);
 
+
         return server_fd;
     }
-
 
     int fdmax;
     fd_set read_fds, sockets;
@@ -284,7 +284,6 @@ class Manager {
         [full packet size]|[Router ID]|[Router count]|Neighbor line 1|Neighbor line 2|...|
     */
 
-
     /** store a 32-bit int into a char buffer */
     void Pack(unsigned char *buf, unsigned int i) {
         buf[3] = i & 0x0FF;
@@ -295,17 +294,6 @@ class Manager {
         i >>= 8;
         buf[0] = i;
     }
-
-
-   /** Unpack a 32-bit unsigned from a char buffer  */
-    unsigned int Unpack(unsigned char *buf) {
-
-        return (unsigned int) (buf[0]<<24) |
-               (buf[1]<<16)  |
-               (buf[2]<<8)  |
-               buf[3];
-    }
-
 
     string findNeighbors(int id) {
         string result;
@@ -364,6 +352,7 @@ class Router {
 
   public:
     Router(int new_port) {
+        router_count = 0;
         pid = getpid();
         port = new_port;
 		stringstream out;
@@ -384,7 +373,7 @@ class Router {
 
         int status = getaddrinfo(NULL, manager_port.str().c_str(), &info, &server_info);
         if (status != 0) {
-            cerr << "getaddrinfo error: " << gai_strerror(status) << endl;
+            cerr << "getaddrinfo error[][]: " << gai_strerror(status) << endl;
             exit(1);
         }
         tcp_fd = socket(server_info->ai_family, server_info->ai_socktype, server_info->ai_protocol); // create socket
@@ -457,12 +446,27 @@ class Router {
         return result;
     }
 
+    void InitializeCosts() {
+        costs = new int*[router_count];
+        for (int i = 0; i < router_count; ++i) {
+            costs[i] = new int[router_count];
+        }
 
+    }
+    ~Router() {
+        if (router_count != 0) {
+            for (int i = 0; i < router_count; ++i) {
+                delete [] costs[i];
+            }
+            delete [] costs;
+        }
+    }
     void InitializeNeighbors(string packet) {
         vector<string> tokens = split_string(packet, "|");
 
         router_id = atoi(tokens[0].c_str());
         router_count = atoi(tokens[1].c_str());
+        InitializeCosts();
 		stringstream msg;
 		msg << "Router No - " << router_id;
 		string out = msg.str();
@@ -548,6 +552,10 @@ class Router {
         cout << port << " received msg: " << buf << endl;
     }
 
+    void ReliableFlood() {
+
+    }
+
 	void writeRouter(string msg) {
 		stringstream name;
 		name << pid << ".out";
@@ -574,6 +582,7 @@ class Router {
     int Count() { return router_count; }
 
 private:
+    int **costs;
     int pid;
     int router_id;
     int router_count;
