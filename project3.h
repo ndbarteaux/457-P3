@@ -280,7 +280,6 @@ class Manager {
         [full packet size]|[Router ID]|[Router count]|Neighbor line 1|Neighbor line 2|...|
     */
 
-
     /** store a 32-bit int into a char buffer */
     void Pack(unsigned char *buf, unsigned int i) {
         buf[3] = i & 0x0FF;
@@ -291,17 +290,6 @@ class Manager {
         i >>= 8;
         buf[0] = i;
     }
-
-
-   /** Unpack a 32-bit unsigned from a char buffer  */
-    unsigned int Unpack(unsigned char *buf) {
-
-        return (unsigned int) (buf[0]<<24) |
-               (buf[1]<<16)  |
-               (buf[2]<<8)  |
-               buf[3];
-    }
-
 
     string findNeighbors(int id) {
         string result;
@@ -542,6 +530,10 @@ class Router {
         recvfrom(fd, buf, sizeof(buf), 0, (struct sockaddr *) &remoteaddr, &addrlen);
 
         cout << port << " received msg: " << buf << endl;
+    }
+
+    void ReliableFlood() {
+
     }
 
 	void writeRouter(string msg) {
