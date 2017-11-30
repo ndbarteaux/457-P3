@@ -569,6 +569,7 @@ class Router {
        int numbytes = recvfrom(fd, buf, sizeof(buf), 0, (struct sockaddr *) &remoteaddr, &addrlen);
 	   buf[numbytes] = '\0';
 	   int senderPort = ntohs(remoteaddr.sin_port);
+	   recvPort = senderPort;
 	   stringstream out;
 	   out << "Received " << buf << " from neighbor router with port " << senderPort;
 	   writeRouter(out.str());
@@ -592,7 +593,7 @@ class Router {
             if (readLSP(packet)) {
                 // forward packet to all neighbors
                 for (int i = 0; i < router_count; i++) {
-                    if ((costs[router_id][i] != 0) && (costs[router_id][i] != i)) {
+                    if ((costs[router_id][i] != 0) && (ports[i] != recvPort)) {
                         cout << router_id << " forwarding to " << i << endl;
                         int sent = Send(ports[i], packet);
                     }
@@ -688,6 +689,7 @@ class Router {
     int router_id;
     int router_count;
     int port;
+	int recvPort;
     int udp_fd;
     int tcp_fd;
     vector<int> ports;
