@@ -109,13 +109,24 @@ class Manager {
         }
         server_fd = socket(server_info->ai_family, server_info->ai_socktype,
                                server_info->ai_protocol); // create socket
-        int buf;
+        int buf = 1;
         if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &buf, sizeof(int)) == -1) {
             perror("setsockopt");
             exit(1);
         }
         bind(server_fd, server_info->ai_addr, server_info->ai_addrlen);
-        cout << "Manager binded to port " << port.str() << endl;
+       
+		// Write To Outfile
+	    cout << "Manager binded to port " << port.str() << endl;
+		stringstream msg;
+		msg << "Manager TCP Server Started.";
+		string out = msg.str();
+		writeOutput(out);
+		msg.str("");
+		msg << "Manager IP Address - 127.0.0.1    Port No - " << MANAGER_PORT << "    Total Routers - " << count;
+		out = msg.str();
+		writeOutput(out);
+		
         return server_fd;
     }
 
@@ -128,6 +139,9 @@ class Manager {
         int fdmax, newfd;
 		
         // Listen on the server socket
+		string out = "Listening to routers for TCP connections.";
+		writeOutput(out);
+		
         listen(server_fd, 10);  // 10 is max connectors - might need fixing
 
         FD_SET(server_fd, &sockets);
@@ -175,12 +189,18 @@ class Manager {
 		routers[id].UDPPort = newPort;
 		routers[id].ID = id;
 		if (id+1 == count) {
+			string out = "All routers have connected. Sending node address and routing information to routers.";
+			writeOutput(out);
 			for(int i=0; i<=id; i++) {
                 string neighbors = findNeighbors(i);
                 stringstream msg;
+				stringstream outFile;
                 msg << "|" << i << "|" << count << "|" << neighbors;
                 int fd = routers[i].fd;
                 Send(fd, msg.str());
+				outFile << "Sent " << msg.str() << " to router " << i;
+				out = outFile.str();
+				writeOutput(out);
 			}
 		}
 	}
