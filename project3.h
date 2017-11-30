@@ -210,6 +210,7 @@ class Manager {
 					int routerID = getID(i);
 					msg << signal << " status received from Router " << routerID;
 					string out = msg.str();
+					msg.str("");
 					writeOutput(out);
 					cout << "Received " << buf << " from " << routerID << endl;
                     FD_CLR(i, &current);
@@ -569,6 +570,7 @@ class Router {
        int numbytes = recvfrom(fd, buf, sizeof(buf), 0, (struct sockaddr *) &remoteaddr, &addrlen);
 	   buf[numbytes] = '\0';
 	   int senderPort = ntohs(remoteaddr.sin_port);
+	   recvPort = senderPort;
 	   stringstream out;
 	   out << "Received " << buf << " from neighbor router with port " << senderPort;
 	   writeRouter(out.str());
@@ -592,7 +594,7 @@ class Router {
             if (readLSP(packet)) {
                 // forward packet to all neighbors
                 for (int i = 0; i < router_count; i++) {
-                    if ((costs[router_id][i] != 0) && (costs[router_id][i] != i)) {
+                    if ((costs[router_id][i] != 0) && (ports[i] != recvPort)) {
                         cout << router_id << " forwarding to " << i << endl;
                         int sent = Send(ports[i], packet);
                     }
@@ -682,6 +684,25 @@ class Router {
 		string stamp = s.str();
 		output << "[" << stamp.substr(0, stamp.length()-1) << "]: " << msg << '\n';
 	}
+	
+	void printRouterTable() {
+		stringstream msg;
+		string out;
+		out = "Routing Table:";
+		writeRouter(out);
+		out = "SourceID		DestID		Cost		DestPort";
+		writeRouter(out);
+		for(int i=0; i<router_count; i++) {
+			for(int j=0; j<router_count; j++) {
+				if(costs[i][j] != 0) {
+					msg << "	" << i << " 			" << j << " 			" << costs[i][j] << " 			" << ports[j];
+					out = msg.str();
+					writeRouter(out);
+					msg.str("");
+				}
+			}
+		}
+	}
 
     /** Unpack a 32-bit unsigned from a char buffer  */
     unsigned int Unpack(unsigned char *buf) {
@@ -701,6 +722,7 @@ class Router {
     int router_id;
     int router_count;
     int port;
+	int recvPort;
     int udp_fd;
     int tcp_fd;
     vector<int> forwarding;
