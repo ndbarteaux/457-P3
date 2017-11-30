@@ -18,6 +18,7 @@
 #include <tuple>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <climits>
 
 using namespace std;
 
@@ -188,9 +189,10 @@ class Manager {
         }
     }
 
-    // after initial listen, wait for all routers to send a ready signal.
-    // then, send an ack back to all so the routing algorithm can begin
-    int WaitForRouters() {
+    // takes a specified signal message and waits for all routers to send that message.
+    // once all have been received, sends an ACK to each router for that signal
+    int WaitForRouters(string signal) {
+        stringstream msg;
         fd_set current = sockets;
         int counter = 0;
         while(true) {
@@ -201,25 +203,31 @@ class Manager {
                     counter++;
                     char buf[255];
                     recv(i, buf, 255, 0);
+                    if (buf != signal) {
+                        cerr << "Manager received msg'" << buf << "' - was expecting '" << signal << "'" << endl;
+                        exit(1);
+                    }
 					int routerID = getID(i);
-					stringstream msg;
-					msg << "READY status received from Router " << routerID;
+					msg << signal << " status received from Router " << routerID;
 					string out = msg.str();
 					writeOutput(out);
 					cout << "Received " << buf << " from " << routerID << endl;
                     FD_CLR(i, &current);
+
+                    // all received
                     if (counter==count) {
-                        out = "All router READY status received. Sending ACK to start next process.";
+                        out = "All router " + string(signal) + " status received. Sending ACK to start next process.";
 						writeOutput(out);
                         for (int j = 0; j < count; j++) {
                             int current_fd = getFD(j);
 							int current_id = getID(current_fd);
+                            string response = "ACK" + signal;    // ACKREADY / ACKRFREADY
+                            Send(current_fd, response);
 							stringstream msg;
-							msg << "Sent ACKREADY to router " << current_id;
+							msg << "Sent " << response << " to router " << current_id;
 							writeOutput(msg.str());
-                            Send(current_fd, "ACKREADY");
                         }
-		    	return 0;
+		    	        return 0;
                     }
                 }
             }
@@ -354,6 +362,14 @@ class Router {
 		string s = out.str();
 		writeRouter(s);
     }
+    ~Router() {
+        if (router_count != 0) {
+            for (int i = 0; i < router_count; ++i) {
+                delete [] costs[i];
+            }
+            delete [] costs;
+        }
+    }
 
     void InitializeTCP() {
         struct addrinfo info;
@@ -445,8 +461,9 @@ class Router {
         return result;
     }
 
+
     void InitializeCosts() {
-        // initialize
+        // initialize costs
         costs = new int*[router_count];
         for (int i = 0; i < router_count; ++i) {
             costs[i] = new int[router_count];
@@ -458,23 +475,13 @@ class Router {
             }
         }
         ports = vector<int>(router_count);  // make sure ports vector is allocated
+    }
 
-    }
-    ~Router() {
-        if (router_count != 0) {
-            for (int i = 0; i < router_count; ++i) {
-                delete [] costs[i];
-            }
-            delete [] costs;
-        }
-    }
     void InitializeNeighbors(string packet) {
         cout << "Made it here" << endl;
         vector<string> tokens = split_string(packet, "|");
-
         router_id = atoi(tokens[0].c_str());
         router_count = atoi(tokens[1].c_str());
-
         InitializeCosts();
 
         stringstream msg;
@@ -488,7 +495,6 @@ class Router {
 		out = "Following are the immediate neighbours.";
 		writeRouter(out);
 		
-		neighborString << "|" << router_id << "|";
         for (int i = 2; i < tokens.size(); ++i) {
             vector<string> neighbor_data = split_string(tokens[i], " "); // splits up info in 1 neighbor line
             int other_id;
@@ -501,7 +507,6 @@ class Router {
             int other_port = atoi(neighbor_data[3].c_str());
             costs[router_id][other_id] = cost;               // store cost in cost grid
             ports[other_id] = other_port; // store port in port table
-			neighborString << router_id << " " << other_id << " " << cost << " " << other_port << "|";
             stringstream message;
 			message << "Neighbor ID - " << other_id << "  Neighbor Cost - " << cost << "  Neighbor Port - " << other_port;
 			string output = message.str();
@@ -573,34 +578,45 @@ class Router {
     }
 
     void ReliableFlood() {
-        for (int i=0; i < router_count; i++) {
+        for (int i = 0; i < router_count; i++) {
             if (costs[router_id][i] != 0) {
-				// Packet to neighbor |[SenderID]|[SenderID] [Neighbor] [Cost] [NeighborPort]| ...
+                // Packet to neighbor |[SenderID]|[SenderID] [Neighbor] [Cost] [NeighborPort]| ...
                 cout << router_id << " Neighbor " << i << " Cost: " << costs[router_id][i] << endl;
-				int sent = Send(ports[i], neighborString.str());
+                string lsp = CreateLSP();
+                int sent = Send(ports[i], lsp);
             }
         }
         int counter = 0;
-		while (counter < router_count - 1) {
-			string packet = Receive(udp_fd);
+        while (counter < router_count - 1) {
+            string packet = Receive(udp_fd);
             if (readLSP(packet)) {
                 // forward packet to all neighbors
-                for (int i=0; i < router_count; i++) {
-                    if (costs[router_id][i] != 0) {
+                for (int i = 0; i < router_count; i++) {
+                    if ((costs[router_id][i] != 0) && (costs[router_id][i] != i)) {
                         cout << router_id << " forwarding to " << i << endl;
                         int sent = Send(ports[i], packet);
                     }
                 }
                 counter++;
             }
-		}
-
-//        SendToManager()
+        }
+        SendToManager("LBReady");
     }
 
 
-    bool readLSP(string LSP) {
-        vector<string> tokens = split_string(LSP, "|");
+    string CreateLSP() {
+        stringstream lsp;
+        lsp << "|" << router_id << "|";
+        for (int i = 0; i < router_count; ++i) {
+            if (costs[router_id][i] != 0) {
+                lsp << router_id << " " << i << " " << costs[router_id][i] << " " << ports[i] << "|";
+            }
+        }
+        return lsp.str();
+    }
+
+    bool readLSP(string lsp) {
+        vector<string> tokens = split_string(lsp, "|");
         int recvd_id = atoi(tokens[0].c_str());
         if (HaveReceived(recvd_id)) {
             return false;
@@ -617,13 +633,11 @@ class Router {
                 int other_port = atoi(neighbor_data[3].c_str());
 
                 costs[recvd_id][other_id] = cost;           // store new cost in cost grid
-
                 if (ports[other_id] == 0) {         // store port IF new
                     ports[other_id] = other_port;
                 }
-
                 cout << recvd_id << ": ";
-                for (int j = 0; j < router_count; ++j) {
+                for (int j = 0; j < router_count; ++j) {  // print for testing
                     cout << costs[recvd_id][j] << " ";
                 }
                 cout << endl;
@@ -674,7 +688,6 @@ class Router {
     int router_id;
     int router_count;
     int port;
-	stringstream neighborString;
     int udp_fd;
     int tcp_fd;
     vector<int> ports;
