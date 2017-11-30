@@ -210,6 +210,7 @@ class Manager {
 					int routerID = getID(i);
 					msg << signal << " status received from Router " << routerID;
 					string out = msg.str();
+					msg.str("");
 					writeOutput(out);
 					cout << "Received " << buf << " from " << routerID << endl;
                     FD_CLR(i, &current);
@@ -669,6 +670,25 @@ class Router {
 		s << asctime(localtime(&timeStamp));
 		string stamp = s.str();
 		output << "[" << stamp.substr(0, stamp.length()-1) << "]: " << msg << '\n';
+	}
+	
+	void printRouterTable() {
+		stringstream msg;
+		string out;
+		out = "Routing Table:";
+		writeRouter(out);
+		out = "SourceID		DestID		Cost		DestPort";
+		writeRouter(out);
+		for(int i=0; i<router_count; i++) {
+			for(int j=0; j<router_count; j++) {
+				if(costs[i][j] != 0) {
+					msg << "	" << i << " 			" << j << " 			" << costs[i][j] << " 			" << ports[j];
+					out = msg.str();
+					writeRouter(out);
+					msg.str("");
+				}
+			}
+		}
 	}
 
     /** Unpack a 32-bit unsigned from a char buffer  */
