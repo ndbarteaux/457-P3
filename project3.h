@@ -32,6 +32,11 @@ struct Children {
 	int ID;
 };
 
+struct Link {
+    int dest_id;
+    int cost;
+    int port;
+};
 
 class Manager {
 
@@ -196,14 +201,12 @@ class Manager {
         for (size_t i = 0; i < msg_len; i++) {
             packet[i + 4] = body[i];
         }
-
         send(fd, packet, sizeof(packet), 0);
-
     }
     /* 
 	Packet Structure for now
         - Starts with '|' and each field is separated by '|'
-        |[Router ID]|[Router count]|Neighbor line 1|Neighbor line 2|...|
+        [full packet size]|[Router ID]|[Router count]|Neighbor line 1|Neighbor line 2|...|
     */
 
 
@@ -286,30 +289,6 @@ class Router {
     Router(int new_port) {
         pid = getpid();
         port = new_port;
-
-        //cout << "Forked child with PID of " << pid << endl;
-        //write(output, "Hello World!\n", 13);
-    }
-
-    /** store a 32-bit int into a char buffer */
-    void Pack(unsigned char *buf, unsigned int i) {
-        buf[3] = i & 0x0FF;
-        i >>= 8;
-        buf[2] = i & 0x0FF;
-        i >>= 8;
-        buf[1] = i & 0x0FF;
-        i >>= 8;
-        buf[0] = i;
-    }
-
-
-    /** Unpack a 32-bit unsigned from a char buffer  */
-    unsigned int Unpack(unsigned char *buf) {
-
-        return (unsigned int) (buf[0]<<24) |
-               (buf[1]<<16)  |
-               (buf[2]<<8)  |
-               buf[3];
     }
 
     void CreateTCPSocket() {
@@ -323,7 +302,6 @@ class Router {
         manager_port << MANAGER_PORT;
 
         int status = getaddrinfo(NULL, manager_port.str().c_str(), &info, &server_info);
-
         if (status != 0) {
             cerr << "getaddrinfo error: " << gai_strerror(status) << endl;
             exit(1);
@@ -334,36 +312,32 @@ class Router {
         if (status == -1) {
             perror(" Error: Failed to connect to manager");
         }
-
         cout << port << " connected" << endl;
-		stringstream portstream;
-		portstream << port;
-		string udpPort = portstream.str();
-
         // send udp port to manager
-        ssize_t numbytes = send(tcp_fd, udpPort.c_str(), sizeof(udpPort.c_str()), 0);
+        SendToManager(to_string(port));
 
         // get response from manager
         string response = RecvFromManager();
         cout << response << endl;
-
+        InitializeNeighbors(response);
     }
 
-    void SendToManager(string msg) {
 
+    int SendToManager(string msg) {
+        return send(tcp_fd, msg.c_str(), sizeof(msg.c_str()), 0);
     }
+
 
     string RecvFromManager() {
         unsigned char response[4096];
         int msg_size = recv(tcp_fd, response, 4096, 0); // receive first chunk
 
-        if (msg_size == 0) {
-        }
+        if (msg_size == 0) { return ""; }
         if (msg_size < 0) {
             perror("Something fucked up receiving");
         }
 
-        int file_size = this->Unpack(response); // processes header to get full file length
+        int file_size = this->Unpack(response); // processes first 4 bytes of response to get msg length
         cout << "Received packet stating size=" << file_size << endl;
 
         string result = "";
@@ -371,6 +345,53 @@ class Router {
             result += static_cast<char>(response[i+4]);
         }
         return result;
+    }
+
+
+    void InitializeNeighbors(string packet) {
+        vector<string> tokens = split_string(packet, "|");
+
+        router_id = atoi(tokens[0].c_str());
+        router_count = atoi(tokens[1].c_str());
+        for (int i = 2; i < tokens.size(); ++i) {
+            vector<string> neighbor_data = split_string(tokens[i], " "); // splits up info in 1 neighbor line
+            // still working on this
+
+//            cout << router_id << ": " << endl;
+//            for (int j = 0; j < 4; j++) {
+//                cout << neighbor_data[j] << " ";
+//            }
+//            Link neighbor = Link();
+//            if (neighbor_data[0] == to_string(router_id)) {
+//                cout << router_id << ": 1 '" << neighbor_data[0] << "'" << endl;
+//                neighbor.dest_id = atoi(neighbor_data[1].c_str());
+//            } else {
+//                cout << router_id << ": 2 '" << neighbor_data[0] << "'" << endl;
+//                neighbor.dest_id = atoi(neighbor_data[0].c_str());
+//            }
+//
+//            cout << endl;
+//            neighbor.cost = atoi(neighbor_data[2].c_str());
+//            neighbor.port = atoi(neighbor_data[3].c_str());
+//            cout << endl << router_id << " Neighbor:\n" << neighbor.dest_id << " " << neighbor.port << " " << neighbor.cost << endl;
+//            neighbors.push_back(neighbor);
+        }
+    }
+
+    vector<string> split_string(string s, string delim) {
+        vector<string> tokens;
+
+        while (s.length() > 0) {
+            if (s.find(delim) == -1) {
+                tokens.push_back(s);
+                return tokens;
+            }
+            string tok = s.substr(0, s.find(delim));
+            if (tok.length() > 0) {
+                tokens.push_back(tok);
+            }
+            s.erase(0, s.find(delim) + 1);
+        }
     }
 
     int CreateUDPSocket() {
@@ -418,11 +439,22 @@ class Router {
         cout << port << " received msg: " << buf << endl;
     }
 
-  private:
+    /** Unpack a 32-bit unsigned from a char buffer  */
+    unsigned int Unpack(unsigned char *buf) {
+        return (unsigned int) (buf[0]<<24) |
+               (buf[1]<<16)  |
+               (buf[2]<<8)  |
+               buf[3];
+    }
+
+private:
     int pid;
+    int router_id;
+    int router_count;
     int port;
     int udp_fd;
     int tcp_fd;
+    vector<Link> neighbors;
 
 };
 
