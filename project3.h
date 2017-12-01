@@ -65,7 +65,7 @@ public:
         }
         lines.pop_back();
     }
-
+	
     int SpawnRouters() {
         // As many pid's as children
         pid_t pid[count];
@@ -301,6 +301,9 @@ public:
     string findNeighbors(int id) {
         string result;
         for (int i = 0; i < count; i++) {
+			if(lines[i] == "-1") {
+				break;
+			}
             string line = lines[i];
             stringstream ss(line);
             int first, second;
@@ -326,6 +329,12 @@ public:
         string stamp = s.str();
         output << "[" << stamp.substr(0, stamp.length()-1) << "]: " << msg << '\n';
     }
+	
+	void readLines() {
+		for(int i=0; i<lines.size(); i++) {
+			cout << lines[i] << endl;
+		}
+	}
 
     // Wait for all children to exit
     void Wait() {
@@ -621,8 +630,6 @@ public:
     }
     
     void ShortestPath() {
-        if (router_id  != 9) exit(0);
-        sleep(2);
         int min, new_id, parent_index;
         vector<Hop> tree;
         Hop root = Hop();
@@ -675,9 +682,19 @@ public:
         for (int k = 0; k < tree.size(); ++k) {
             cout << tree[k].cost << " ";
         }
-        cout << endl << endl << "Forwarding table" << endl;
+        cout << endl << endl << "Forwarding table " << router_id << endl;
+		string out = "Following is the Shortest Path Forwarding Table.";
+		stringstream msg;
+		writeRouter(out);
         for (int i = 0; i < router_count; i++) {
             cout << i << ": " << next_hop[i] << endl;
+			if(router_id == i) {
+				msg << "( " << i << " , " << "0" << " , " << "-" << " )";
+			} else {
+				msg << "( " << i << " , " << costs[router_id][next_hop[i]] << " , " << next_hop[i] << " )";
+			}
+			writeRouter(msg.str());
+			msg.str("");
         }
     }
 

@@ -17,8 +17,11 @@ void childFunction(int port, bool debug) {
     router.SendToManager("LBReady");
     response = router.RecvFromManager();
     cout << router.ID() << " received: " << response << endl;
-
+	router.printRouterTable();
     router.ShortestPath();
+	router.SendToManager("DAREADY");
+	response = router.RecvFromManager();
+	cout << router.ID() << " received: " << response << endl;
 
 
     // now, we give our port to the manager and get the table of our neighbors (id, link cost, port)
