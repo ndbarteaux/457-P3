@@ -1,6 +1,7 @@
 #ifndef P3_H
 #define P3_H
 
+#include <algorithm>
 #include <string>
 #include <iostream>
 #include <sys/types.h>
@@ -261,7 +262,6 @@ class Manager {
 		routers[id].fd = sockfd;
 		routers[id].UDPPort = newPort;
 		routers[id].ID = id;
-
 	}
 
     // constructs and sends a packet to a specific router
@@ -602,19 +602,33 @@ class Router {
                 counter++;
             }
         }
-        SendToManager("LBReady");
     }
 
 
     void ShortestPath() {
-        vector<int> set;
+        vector<int> added_nodes;
+        added_nodes.push_back(router_id);
         int min = INT_MAX;
-        for (int i = 0; i < router_count; i++) {
-            int cost = costs[router_id][i];
-            if ((cost != 0) && (cost < min)) {
-                min = cost;
+        int min_id;
+
+        // 1 iteratino is one step of the algorithm
+        while (added_nodes.size() < router_count) {
+            for (int j = 0; j < added_nodes.size(); ++j) {
+                int current_router = added_nodes[j];
+
+                // find least expensive path among source's neighbors
+                for (int i = 0; i < router_count; ++i) {
+                    if (find(added_nodes.begin(), added_nodes.end(), i) == added_nodes.end()) { // skips if i has been added
+                        continue;
+                    }
+                    int cost = costs[current_router][i];
+                    if ((cost != 0) && (cost < min)) {
+                        min = cost;
+                        min_id = i;
+                    }
+                }
+                added_nodes.push_back(min_id);
             }
-            set.push_back(min);
         }
 
     }
