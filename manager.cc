@@ -11,7 +11,7 @@ void parentFunction(string in) {
     manager.WaitForRouters("LBReady");
 	manager.WaitForRouters("DAREADY");
     sleep(3);
-    // TCP shit, talking to the routers
+
 	manager.readLines();
     manager.Wait();
 

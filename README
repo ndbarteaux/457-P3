@@ -1,2 +1,11 @@
 # 457-P3
 CS457 Project 3
+Nate Barteaux and Ian Franklin
+
+To compile:
+% make
+
+To run:
+% ./manager [input file]
+
+The manager class will read the input file to spawn routers and set up the network. Manager forks the specified number of routers, and the routers set up have their own methods to set up UDP and TCP sockets. After all routers signal they are ready, the manager sends them their ID and neighbor information. The routers then call their broadcast function to communicate with their neighbors. Once the limited broadcast is complete, each router calls their shortest path method and creates a shortest path forwarding table. We did not have enough time to complete the sending of packets between routers. Everything else is logged to its respective outfile, each router's outfile is named by its UDP socket. 

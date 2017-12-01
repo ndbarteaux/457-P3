@@ -431,11 +431,6 @@ public:
         string response = RecvFromManager();
         InitializeNeighbors(response);
         cout << router_id << " initialized successfully" << endl;
-        if (router_id == 0) {
-            for (int i = 0; i < router_count; ++i) {
-                cout << ports[i] << endl;
-            }
-        }
     }
 
 
@@ -447,7 +442,7 @@ public:
         cout << "sending: '" << msg << "'" << endl;
         int status =  send(tcp_fd, msg.c_str(), sizeof(msg.c_str()), 0);
         if (status == -1) {
-            perror("shit fucked");
+            perror("Send failed");
         }
     }
 
@@ -458,7 +453,7 @@ public:
 
         if (msg_size == 0) { return ""; }
         if (msg_size < 0) {
-            perror("Something fucked up receiving");
+            perror("Receive Error");
         }
 
         int file_size = this->Unpack(response); // processes first 4 bytes of response to get msg length
@@ -493,7 +488,6 @@ public:
     }
 
     void InitializeNeighbors(string packet) {
-        cout << "Made it here" << endl;
         vector<string> tokens = split_string(packet, "|");
         router_id = atoi(tokens[0].c_str());
         router_count = atoi(tokens[1].c_str());
@@ -597,7 +591,6 @@ public:
         for (int i = 0; i < router_count; i++) {
             if (costs[router_id][i] != 0) {
                 // Packet to neighbor |[SenderID]|[SenderID] [Neighbor] [Cost] [NeighborPort]| ...
-                cout << router_id << " Neighbor " << i << " Cost: " << costs[router_id][i] << endl;
                 string lsp = CreateLSP();
                 int sent = Send(ports[i], lsp);
             }
@@ -609,7 +602,6 @@ public:
                 // forward packet to all neighbors
                 for (int i = 0; i < router_count; i++) {
                     if ((costs[router_id][i] != 0) && (ports[i] != recvPort)) {
-                        cout << router_id << " forwarding to " << i << endl;
                         int sent = Send(ports[i], packet);
                     }
                 }
@@ -680,22 +672,14 @@ public:
             next_hop[new_id] = next;
             tree.push_back(new_hop);
         }
-        // test print
-        cout << router_id << ": ";
-        for (int k = 0; k < tree.size(); ++k) {
-            cout << tree[k].id << " ";
-        }
-        cout << endl;
-        cout << router_id << ": ";
+		
         for (int k = 0; k < tree.size(); ++k) {
             cout << tree[k].cost << " ";
         }
-        cout << endl << endl << "Forwarding table " << router_id << endl;
 		string out = "Following is the Shortest Path Forwarding Table.";
 		stringstream msg;
 		writeRouter(out);
         for (int i = 0; i < router_count; i++) {
-            cout << i << ": " << next_hop[i] << endl;
 			if(router_id == i) {
 				msg << "( " << i << " , " << "0" << " , " << "-" << " )";
 			} else {
@@ -740,11 +724,6 @@ public:
                 if (ports[other_id] == 0) {         // store port IF new
                     ports[other_id] = other_port;
                 }
-                cout << recvd_id << ": ";
-                for (int j = 0; j < router_count; ++j) {  // print for testing
-                    cout << costs[recvd_id][j] << " ";
-                }
-                cout << endl;
             }
             return true;
         }
