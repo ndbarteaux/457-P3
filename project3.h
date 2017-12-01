@@ -1,6 +1,7 @@
 #ifndef P3_H
 #define P3_H
 
+#include <algorithm>
 #include <string>
 #include <iostream>
 #include <sys/types.h>
@@ -28,21 +29,21 @@ void childFunction(int port, bool debug);
 static int MANAGER_PORT = 8880;
 
 struct Children {
-	int fd;
-	int UDPPort;
-	int ID;
+    int fd;
+    int UDPPort;
+    int ID;
 };
 
 class Manager {
 
-  public:
+public:
     Manager(string filename) {
         count = 0;
         ReadFile(filename);
-		stringstream out;
-		out << "Manager Log file created";
-		string s = out.str();
-		writeOutput(s);
+        stringstream out;
+        out << "Manager Log file created";
+        string s = out.str();
+        writeOutput(s);
     }
 
     void ReadFile(string filename) {
@@ -105,7 +106,7 @@ class Manager {
             exit(1);
         }
         server_fd = socket(server_info->ai_family, server_info->ai_socktype,
-                               server_info->ai_protocol); // create socket
+                           server_info->ai_protocol); // create socket
         int buf = 1;
         if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &buf, sizeof(int)) == -1) {
             perror("setsockopt");
@@ -113,37 +114,35 @@ class Manager {
         }
         bind(server_fd, server_info->ai_addr, server_info->ai_addrlen);
 
-		// Write To Outfile
-	    cout << "Manager binded to port " << port.str() << endl;
-		stringstream msg;
-		msg << "Manager TCP Server Started.";
-		string out = msg.str();
-		writeOutput(out);
-		msg.str("");
-		msg << "Manager IP Address - 127.0.0.1    Port No - " << MANAGER_PORT << "    Total Routers - " << count;
-		out = msg.str();
-		writeOutput(out);
+        // Write To Outfile
+        cout << "Manager binded to port " << port.str() << endl;
+        stringstream msg;
+        msg << "Manager TCP Server Started.";
+        string out = msg.str();
+        writeOutput(out);
+        msg.str("");
+        msg << "Manager IP Address - 127.0.0.1    Port No - " << MANAGER_PORT << "    Total Routers - " << count;
+        out = msg.str();
+        writeOutput(out);
 
 
         return server_fd;
     }
 
-    int fdmax;
-    fd_set read_fds, sockets;
 
     int InitialListen() {
         FD_ZERO(&read_fds);
         int newfd;
-		
+
         // Listen on the server socket
-		string out = "Listening to routers for TCP connections.";
-		writeOutput(out);
+        string out = "Listening to routers for TCP connections.";
+        writeOutput(out);
 
         listen(server_fd, 10);  // 10 is max connectors - might need fixing
 
         FD_SET(server_fd, &sockets);
         fdmax = server_fd;
-		int counter = 0;
+        int counter = 0;
         while(true) {
             read_fds = sockets;
             select(fdmax + 1, &read_fds, NULL, NULL, NULL);
@@ -202,45 +201,46 @@ class Manager {
                 if (FD_ISSET(i, &read_fds)) {
                     counter++;
                     char buf[255];
-                    recv(i, buf, 255, 0);
+                    int msg_size = recv(i, buf, 255, 0);
+//                    buf.remove(msg_size);
                     if (buf != signal) {
                         cerr << "Manager received msg'" << buf << "' - was expecting '" << signal << "'" << endl;
                         exit(1);
                     }
-					int routerID = getID(i);
-					msg << signal << " status received from Router " << routerID;
-					string out = msg.str();
-					msg.str("");
-					writeOutput(out);
-					cout << "Received " << buf << " from " << routerID << endl;
+                    int routerID = getID(i);
+                    msg << signal << " status received from Router " << routerID;
+                    string out = msg.str();
+                    msg.str("");
+                    writeOutput(out);
+                    cout << "Received " << buf << " from " << routerID << endl;
                     FD_CLR(i, &current);
 
                     // all received
                     if (counter==count) {
                         out = "All router " + string(signal) + " status received. Sending ACK to start next process.";
-						writeOutput(out);
+                        writeOutput(out);
                         for (int j = 0; j < count; j++) {
                             int current_fd = getFD(j);
-							int current_id = getID(current_fd);
+                            int current_id = getID(current_fd);
                             string response = "ACK" + signal;    // ACKREADY / ACKRFREADY
                             Send(current_fd, response);
-							stringstream msg;
-							msg << "Sent " << response << " to router " << current_id;
-							writeOutput(msg.str());
+                            stringstream msg;
+                            msg << "Sent " << response << " to router " << current_id;
+                            writeOutput(msg.str());
                         }
-		    	        return 0;
+                        return 0;
                     }
                 }
             }
         }
     }
 
-	int getID(int fd) {
-		for (int i=0; i<routers.size(); i++) {
-			if (routers[i].fd == fd)
-				return routers[i].ID;
-		}
-	}
+    int getID(int fd) {
+        for (int i=0; i<routers.size(); i++) {
+            if (routers[i].fd == fd)
+                return routers[i].ID;
+        }
+    }
 
     int getFD(int id) {
         for (int i=0; i<routers.size(); i++) {
@@ -249,20 +249,19 @@ class Manager {
         }
     }
 
-	// Fill out a router struct for a given fd and id
+    // Fill out a router struct for a given fd and id
     // Calculates its neighbors
     // Constructs init packet to send back to the router (?)
-	void InitializeRouter(int sockfd, int id) {
-		char buffer[256]; 
-		int numbytes = recv(sockfd, buffer, 255, 0);
-		int newPort = atoi(buffer);
-		cout << buffer << " Received by Manager " << endl;
-		routers.push_back(Children());
-		routers[id].fd = sockfd;
-		routers[id].UDPPort = newPort;
-		routers[id].ID = id;
-
-	}
+    void InitializeRouter(int sockfd, int id) {
+        char buffer[256];
+        int numbytes = recv(sockfd, buffer, 255, 0);
+        int newPort = atoi(buffer);
+        cout << buffer << " Received by Manager " << endl;
+        routers.push_back(Children());
+        routers[id].fd = sockfd;
+        routers[id].UDPPort = newPort;
+        routers[id].ID = id;
+    }
 
     // constructs and sends a packet to a specific router
     void Send(int fd, string body) {
@@ -316,17 +315,17 @@ class Manager {
         }
         return result;
     }
-	
-	void writeOutput(string msg) {
-		ofstream output;
-		output.open("Manager.out", ofstream::app);
-		stringstream s;
-		time_t timeStamp = time(nullptr);
-		s << asctime(localtime(&timeStamp));
-		string stamp = s.str();
-		output << "[" << stamp.substr(0, stamp.length()-1) << "]: " << msg << '\n';
-	}
-	
+
+    void writeOutput(string msg) {
+        ofstream output;
+        output.open("Manager.out", ofstream::app);
+        stringstream s;
+        time_t timeStamp = time(nullptr);
+        s << asctime(localtime(&timeStamp));
+        string stamp = s.str();
+        output << "[" << stamp.substr(0, stamp.length()-1) << "]: " << msg << '\n';
+    }
+
     // Wait for all children to exit
     void Wait() {
         int status;
@@ -338,11 +337,13 @@ class Manager {
         }
     }
 
-  private:
+private:
+    int fdmax;
+    fd_set read_fds, sockets;
     int server_fd;
     int count;    // number of children
     vector<string> lines;
-	vector<Children> routers;
+    vector<Children> routers;
 
 };
 
@@ -353,15 +354,15 @@ class Manager {
 
 class Router {
 
-  public:
+public:
     Router(int new_port) {
         router_count = 0;
         pid = getpid();
         port = new_port;
-		stringstream out;
-		out << "Router Log file " << pid << ".out created";
-		string s = out.str();
-		writeRouter(s);
+        stringstream out;
+        out << "Router Log file " << pid << ".out created";
+        string s = out.str();
+        writeRouter(s);
     }
     ~Router() {
         if (router_count != 0) {
@@ -389,20 +390,20 @@ class Router {
         }
         tcp_fd = socket(server_info->ai_family, server_info->ai_socktype, server_info->ai_protocol); // create socket
 
-		// Router Logging
-		string out = "TCP and UDP Sockets created.";
-		writeRouter(out);
-		stringstream message;
-		message << "TCP Port No - " << MANAGER_PORT;
-		out = message.str();
-		writeRouter(out);
-		message.str("");
-		message << "UDP Port No - " << port;
-		out = message.str();
-		writeRouter(out);
-		message.str("");
-		out = "Waiting to connect to the manager...";
-		writeRouter(out);
+        // Router Logging
+        string out = "TCP and UDP Sockets created.";
+        writeRouter(out);
+        stringstream message;
+        message << "TCP Port No - " << MANAGER_PORT;
+        out = message.str();
+        writeRouter(out);
+        message.str("");
+        message << "UDP Port No - " << port;
+        out = message.str();
+        writeRouter(out);
+        message.str("");
+        out = "Waiting to connect to the manager...";
+        writeRouter(out);
 
         sleep(1);
         status = connect (tcp_fd, server_info->ai_addr, server_info->ai_addrlen);
@@ -410,9 +411,9 @@ class Router {
             perror(" Error: Failed to connect to manager");
         }
         cout << port << " connected" << endl;
-		stringstream portstream;
-		portstream << port;
-		string udpPort = portstream.str();
+        stringstream portstream;
+        portstream << port;
+        string udpPort = portstream.str();
 
         // send udp port to manager
         SendToManager(to_string(port));
@@ -430,9 +431,10 @@ class Router {
 
 
     int SendToManager(string msg) {
-		string out = "Sending the following data to manager.";
-		writeRouter(out);
-		writeRouter(msg);
+//        msg += '\0';
+        string out = "Sending the following data to manager.";
+        writeRouter(out);
+        writeRouter(msg);
         cout << "sending: '" << msg << "'" << endl;
         int status =  send(tcp_fd, msg.c_str(), sizeof(msg.c_str()), 0);
         if (status == -1) {
@@ -456,9 +458,9 @@ class Router {
         for (int i = 0; i < msg_size - 5; i++) {
             result += static_cast<char>(response[i+4]);
         }
-		string out = "Receiving Node information from the manager.";
-		writeRouter(out);
-		writeRouter(result);
+        string out = "Receiving Node information from the manager.";
+        writeRouter(out);
+        writeRouter(result);
         return result;
     }
 
@@ -475,7 +477,10 @@ class Router {
                 costs[i][j] = 0;
             }
         }
-        ports = vector<int>(router_count);  // make sure ports vector is allocated
+        ports = vector<int>(router_count);  // make sure vectors are allocated
+        forwarding = vector<int>(router_count);
+        total_costs = vector<int>(router_count);
+        next_hop = vector<int>(router_count);
     }
 
     void InitializeNeighbors(string packet) {
@@ -486,16 +491,16 @@ class Router {
         InitializeCosts();
 
         stringstream msg;
-		msg << "Router No - " << router_id;
-		string out = msg.str();
-		writeRouter(out);
-		msg.str("");
-		msg << "Total Routers - " << router_count;
-		out = msg.str();
-		writeRouter(out);
-		out = "Following are the immediate neighbours.";
-		writeRouter(out);
-		
+        msg << "Router No - " << router_id;
+        string out = msg.str();
+        writeRouter(out);
+        msg.str("");
+        msg << "Total Routers - " << router_count;
+        out = msg.str();
+        writeRouter(out);
+        out = "Following are the immediate neighbours.";
+        writeRouter(out);
+
         for (int i = 2; i < tokens.size(); ++i) {
             vector<string> neighbor_data = split_string(tokens[i], " "); // splits up info in 1 neighbor line
             int other_id;
@@ -509,9 +514,9 @@ class Router {
             costs[router_id][other_id] = cost;               // store cost in cost grid
             ports[other_id] = other_port; // store port in port table
             stringstream message;
-			message << "Neighbor ID - " << other_id << "  Neighbor Cost - " << cost << "  Neighbor Port - " << other_port;
-			string output = message.str();
-			writeRouter(output);
+            message << "Neighbor ID - " << other_id << "  Neighbor Cost - " << cost << "  Neighbor Port - " << other_port;
+            string output = message.str();
+            writeRouter(output);
         }
     }
 
@@ -557,9 +562,9 @@ class Router {
         address.sin_family = AF_INET;
         address.sin_port = htons(dest_port);
         inet_pton(AF_INET, "127.0.0.1", &address.sin_addr);  // store localhost address in structure
-		stringstream out;
-		out << "Sent " << msg << " to router with port " << dest_port;
-		writeRouter(out.str());
+        stringstream out;
+        out << "Sent " << msg << " to router with port " << dest_port;
+        writeRouter(out.str());
         sendto(udp_fd, msg.c_str(), msg.length(), 0, (struct sockaddr *) &address, sizeof(address));
     }
 
@@ -567,16 +572,16 @@ class Router {
         struct sockaddr_in remoteaddr;
         socklen_t addrlen = sizeof(remoteaddr);            /* length of addresses */
         char buf[512];
-       int numbytes = recvfrom(fd, buf, sizeof(buf), 0, (struct sockaddr *) &remoteaddr, &addrlen);
-	   buf[numbytes] = '\0';
-	   int senderPort = ntohs(remoteaddr.sin_port);
-	   recvPort = senderPort;
-	   stringstream out;
-	   out << "Received " << buf << " from neighbor router with port " << senderPort;
-	   writeRouter(out.str());
-       cout << router_id << " received msg: " << buf << endl;
+        int numbytes = recvfrom(fd, buf, sizeof(buf), 0, (struct sockaddr *) &remoteaddr, &addrlen);
+        buf[numbytes] = '\0';
+        int senderPort = ntohs(remoteaddr.sin_port);
+        recvPort = senderPort;
+        stringstream out;
+        out << "Received " << buf << " from neighbor router with port " << senderPort;
+        writeRouter(out.str());
+        cout << router_id << " received msg: " << buf << endl;
         return string(buf);
-		
+
     }
 
     void ReliableFlood() {
@@ -602,9 +607,87 @@ class Router {
                 counter++;
             }
         }
-        SendToManager("LBReady");
     }
 
+    struct Hop {
+        int id;
+        int cost;
+        Hop *parent;
+    };
+    
+    bool TreeContains(vector<Hop> tree, int id) {
+        for (int i = 0; i < tree.size(); ++i) {
+            if (tree[i].id == id) return true;
+        }
+        return false;
+    }
+    
+    void ShortestPath() {
+        int min, new_id, parent_index;
+        vector<Hop> tree;
+        Hop root = Hop();
+        root.id = router_id;
+        root.cost = 0;
+        root.parent = NULL;
+        tree.push_back(root);
+
+        // 1 iteration is one step of the algorithm
+        while (tree.size() < router_count) {
+            min = INT_MAX;
+            new_id = -1;
+            // loops through all nodes currently in tree
+            for (int i = 0; i < tree.size(); ++i) {
+                Hop current_router = tree[i];
+                // find least expensive path among current node's neighbors
+                for (int j = 0; j < router_count; ++j) {
+                    if (costs[current_router.id][j] != 0) { // link exists
+                        if (!TreeContains(tree, j)) {   // router already in tree
+                            int cost = costs[current_router.id][j] + current_router.cost;
+                            if (cost < min) {
+                                min = cost;  // update minimum
+                                new_id = j;
+                                parent_index = i;  // index of parent Hop object in tree vector
+                            }
+                        }
+                    }
+                }
+            }
+            // put new lowest cost router in the tree
+            Hop new_hop = Hop();
+            new_hop.id = new_id;
+            new_hop.cost = min;
+            new_hop.parent = &tree[parent_index];
+            Hop *temp = new_hop.parent;
+            int next;
+            if (temp->parent == NULL) {
+                next = new_id;
+            } else {
+                while (temp->parent != NULL && temp->parent->parent != NULL) {
+                    temp = temp->parent;
+                }
+                next = temp->id;
+            }
+            // temp = neighbor of source = next hop
+            next_hop[new_id] = next;
+            tree.push_back(new_hop);
+        }
+        // test print
+        cout << router_id << ": ";
+        for (int k = 0; k < tree.size(); ++k) {
+            cout << tree[k].id << " ";
+        }
+        cout << endl;
+        cout << router_id << ": ";
+        for (int k = 0; k < tree.size(); ++k) {
+            cout << tree[k].cost << " ";
+        }
+        cout << endl << endl << "Forwarding table" << endl;
+        for (int i = 0; i < router_count; i++) {
+            cout << i << ": " << next_hop[i] << endl;
+        }
+    }
+
+    vector<int> next_hop;
 
     void ShortestPath() {
         vector<int> set;
@@ -673,36 +756,36 @@ class Router {
 
 
     void writeRouter(string msg) {
-		stringstream name;
-		name << pid << ".out";
-		string filename = name.str();
-		ofstream output;
-		output.open(filename, ofstream::app);
-		stringstream s;
-		time_t timeStamp = time(nullptr);
-		s << asctime(localtime(&timeStamp));
-		string stamp = s.str();
-		output << "[" << stamp.substr(0, stamp.length()-1) << "]: " << msg << '\n';
-	}
-	
-	void printRouterTable() {
-		stringstream msg;
-		string out;
-		out = "Routing Table:";
-		writeRouter(out);
-		out = "SourceID		DestID		Cost		DestPort";
-		writeRouter(out);
-		for(int i=0; i<router_count; i++) {
-			for(int j=0; j<router_count; j++) {
-				if(costs[i][j] != 0) {
-					msg << "	" << i << " 			" << j << " 			" << costs[i][j] << " 			" << ports[j];
-					out = msg.str();
-					writeRouter(out);
-					msg.str("");
-				}
-			}
-		}
-	}
+        stringstream name;
+        name << pid << ".out";
+        string filename = name.str();
+        ofstream output;
+        output.open(filename, ofstream::app);
+        stringstream s;
+        time_t timeStamp = time(nullptr);
+        s << asctime(localtime(&timeStamp));
+        string stamp = s.str();
+        output << "[" << stamp.substr(0, stamp.length()-1) << "]: " << msg << '\n';
+    }
+
+    void printRouterTable() {
+        stringstream msg;
+        string out;
+        out = "Routing Table:";
+        writeRouter(out);
+        out = "SourceID		DestID		Cost		DestPort";
+        writeRouter(out);
+        for(int i=0; i<router_count; i++) {
+            for(int j=0; j<router_count; j++) {
+                if(costs[i][j] != 0) {
+                    msg << "	" << i << " 			" << j << " 			" << costs[i][j] << " 			" << ports[j];
+                    out = msg.str();
+                    writeRouter(out);
+                    msg.str("");
+                }
+            }
+        }
+    }
 
     /** Unpack a 32-bit unsigned from a char buffer  */
     unsigned int Unpack(unsigned char *buf) {
@@ -716,17 +799,18 @@ class Router {
     int ID() { return router_id; }
     int Count() { return router_count; }
 
-  private:
+private:
     int **costs;
     int pid;
     int router_id;
     int router_count;
     int port;
-	int recvPort;
+    int recvPort;
     int udp_fd;
     int tcp_fd;
     vector<int> forwarding;
     vector<int> ports;
+    vector<int> total_costs;
 
 };
 

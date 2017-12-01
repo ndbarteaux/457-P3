@@ -14,9 +14,15 @@ void childFunction(int port, bool debug) {
     response = router.RecvFromManager();
     cout << router.ID() << " received: " << response << endl;
     router.ReliableFlood();
+    router.SendToManager("LBReady");
     response = router.RecvFromManager();
     cout << router.ID() << " received: " << response << endl;
-	router.printRouterTable();
+
+    router.ShortestPath();
+
+//    router.SendToManager("SPTReadyy");
+
+
 
     // now, we give our port to the manager and get the table of our neighbors (id, link cost, port)
 
