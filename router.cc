@@ -23,6 +23,9 @@ void childFunction(int port, bool debug) {
 	response = router.RecvFromManager();
 	cout << router.ID() << " received: " << response << endl;
 
+//    router.SendToManager("SPTReadyy");
+
+
 
     // now, we give our port to the manager and get the table of our neighbors (id, link cost, port)
 

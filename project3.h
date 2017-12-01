@@ -129,8 +129,6 @@ public:
         return server_fd;
     }
 
-    int fdmax;
-    fd_set read_fds, sockets;
 
     int InitialListen() {
         FD_ZERO(&read_fds);
@@ -203,7 +201,8 @@ public:
                 if (FD_ISSET(i, &read_fds)) {
                     counter++;
                     char buf[255];
-                    recv(i, buf, 255, 0);
+                    int msg_size = recv(i, buf, 255, 0);
+//                    buf.remove(msg_size);
                     if (buf != signal) {
                         cerr << "Manager received msg'" << buf << "' - was expecting '" << signal << "'" << endl;
                         exit(1);
@@ -348,6 +347,8 @@ public:
     }
 
 private:
+    int fdmax;
+    fd_set read_fds, sockets;
     int server_fd;
     int count;    // number of children
     vector<string> lines;
@@ -439,6 +440,7 @@ public:
 
 
     int SendToManager(string msg) {
+//        msg += '\0';
         string out = "Sending the following data to manager.";
         writeRouter(out);
         writeRouter(msg);
@@ -644,7 +646,6 @@ public:
             new_id = -1;
             // loops through all nodes currently in tree
             for (int i = 0; i < tree.size(); ++i) {
-                cout << "NEW " << 1 << endl;
                 Hop current_router = tree[i];
                 // find least expensive path among current node's neighbors
                 for (int j = 0; j < router_count; ++j) {
@@ -666,13 +667,20 @@ public:
             new_hop.cost = min;
             new_hop.parent = &tree[parent_index];
             Hop *temp = new_hop.parent;
-            while (temp->parent != NULL && temp->parent->parent != NULL) {
-                temp = temp->parent;
+            int next;
+            if (temp->parent == NULL) {
+                next = new_id;
+            } else {
+                while (temp->parent != NULL && temp->parent->parent != NULL) {
+                    temp = temp->parent;
+                }
+                next = temp->id;
             }
             // temp = neighbor of source = next hop
-            next_hop[new_id] = temp->id;
+            next_hop[new_id] = next;
             tree.push_back(new_hop);
         }
+        // test print
         cout << router_id << ": ";
         for (int k = 0; k < tree.size(); ++k) {
             cout << tree[k].id << " ";
