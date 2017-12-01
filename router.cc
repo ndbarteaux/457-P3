@@ -20,6 +20,9 @@ void childFunction(int port, bool debug) {
 
     router.ShortestPath();
 
+//    router.SendToManager("SPTReadyy");
+
+
 
     // now, we give our port to the manager and get the table of our neighbors (id, link cost, port)
 

@@ -9,7 +9,8 @@ void parentFunction(string in) {
 
     manager.WaitForRouters("READY");
     manager.WaitForRouters("LBReady");
-
+    sleep(3);
+//    manager.WaitForRouters("SPTReady");
     // TCP shit, talking to the routers
 
     manager.Wait();
