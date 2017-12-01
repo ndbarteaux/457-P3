@@ -475,7 +475,9 @@ class Router {
                 costs[i][j] = 0;
             }
         }
-        ports = vector<int>(router_count);  // make sure ports vector is allocated
+        ports = vector<int>(router_count);  // make sure vectors are allocated
+        forwarding = vector<int>(router_count);
+        total_costs = vector<int>(router_count);
     }
 
     void InitializeNeighbors(string packet) {
@@ -607,12 +609,18 @@ class Router {
 
     void ShortestPath() {
         vector<int> added_nodes;
-        added_nodes.push_back(router_id);
         int min = INT_MAX;
-        int min_id;
+        int min_id = 0;
+        int min_parent = router_id;
+        total_costs[router_id] = 0;
+        added_nodes.push_back(router_id);
 
-        // 1 iteratino is one step of the algorithm
+        // 1 iteration is one step of the algorithm
         while (added_nodes.size() < router_count) {
+            min = INT_MAX;
+            min_id = -1;
+
+            // loops through the added nodes
             for (int j = 0; j < added_nodes.size(); ++j) {
                 int current_router = added_nodes[j];
 
@@ -623,15 +631,29 @@ class Router {
                     }
                     int cost = costs[current_router][i];
                     if ((cost != 0) && (cost < min)) {
+                        min_parent = current_router;
                         min = cost;
                         min_id = i;
                     }
                 }
-                added_nodes.push_back(min_id);
             }
+//            cout << router_id << ":: " << min_parent << " " << min << " " << min_id << endl;
+
+
+
+//            test
+            cout << router_id << ": ";
+            for (int k = 0; k < added_nodes.size(); ++k) {
+                cout << added_nodes[k] << " ";
+            }
+            cout << endl;
+            total_costs[min_id] = total_costs[min_parent] + costs[min_parent][min_id];
+            added_nodes.push_back(min_id);
+
         }
 
     }
+
 
     string CreateLSP() {
         stringstream lsp;
@@ -741,6 +763,7 @@ class Router {
     int tcp_fd;
     vector<int> forwarding;
     vector<int> ports;
+    vector<int> total_costs;
 
 };
 
